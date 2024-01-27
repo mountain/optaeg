@@ -151,10 +151,8 @@ class MNIST_OptAEGV1(MNISTModel):
         self.lnon1 = OptAEGV1()
         self.conv2 = nn.Conv2d(2, 2, kernel_size=5, padding=2)
         self.lnon2 = OptAEGV1()
-        self.conv3 = nn.Conv2d(2, 2, kernel_size=5, padding=2)
-        self.lnon3 = OptAEGV1()
         self.fc1 = nn.Linear(2 * 3 * 3, 10)
-        self.lnon4 = OptAEGV1()
+        self.lnon3 = OptAEGV1()
         self.fc2 = nn.Linear(10, 10, bias=False)
  
     def forward(self, x):
@@ -169,7 +167,7 @@ class MNIST_OptAEGV1(MNISTModel):
         x = self.pool(x)
         x = th.flatten(x, 1)
         x = self.fc1(x)
-        x = self.lnon4(x)
+        x = self.lnon3(x)
         x = self.fc2(x)
         x = F.log_softmax(x, dim=1)
         return x
