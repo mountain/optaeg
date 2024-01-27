@@ -151,10 +151,8 @@ class FashionMNIST_OptAEGV1(MNISTModel):
         self.lnon1 = OptAEGV1()
         self.conv2 = nn.Conv2d(32, 32, kernel_size=3, padding=1)
         self.lnon2 = OptAEGV1()
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=3, padding=1)
-        self.lnon3 = OptAEGV1()
         self.fc1 = nn.Linear(32 * 3 * 3, 50)
-        self.lnon4 = OptAEGV1()
+        self.lnon3 = OptAEGV1()
         self.fc2 = nn.Linear(50, 10, bias=False)
  
     def forward(self, x):
@@ -169,7 +167,7 @@ class FashionMNIST_OptAEGV1(MNISTModel):
         x = self.pool(x)
         x = th.flatten(x, 1)
         x = self.fc1(x)
-        x = self.lnon4(x)
+        x = self.lnon3(x)
         x = self.fc2(x)
         x = F.log_softmax(x, dim=1)
         return x
