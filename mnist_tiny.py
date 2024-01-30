@@ -42,7 +42,7 @@ class OptAEGV1(nn.Module):
         return state
 
     @th.compile
-    def integral(self, param, index):
+    def interpolate(self, param, index):
         i = index.floor().long()
         p = index - i
         j = i + 1
@@ -57,8 +57,8 @@ class OptAEGV1(nn.Module):
         data = (data - data.mean()) / data.std() * self.iscale
         data = data.flatten(0)
 
-        theta = self.integral(self.theta, th.sigmoid(data) * (self.points - 1))
-        ds = self.integral(self.velocity, th.abs(th.tanh(data)) * (self.points - 1))
+        theta = self.interpolate(self.theta, th.sigmoid(data) * (self.points - 1))
+        ds = self.interpolate(self.velocity, th.abs(th.tanh(data)) * (self.points - 1))
 
         dx = ds * th.cos(theta)
         dy = ds * th.sin(theta)
