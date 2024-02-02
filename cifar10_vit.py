@@ -1,3 +1,6 @@
+# The ViT code is originally from https://github.com/kentaroy47/vision-transformers-cifar10/ by Kentaro Yoshioka
+# modified by Mingli Yuan to adapt the AEG theory
+
 import torch as th
 import torch.nn.functional as F
 import lightning as ltn
