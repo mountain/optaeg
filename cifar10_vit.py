@@ -56,13 +56,12 @@ class OptAEGV1(nn.Module):
 
         dx = th.e * th.tanh(self.weight2 * data + self.bias2)
         dy = th.e * th.tanh(data)
-        data = data * th.exp(dy) + dx
 
-        # data1 = data * th.exp(dy) + dx
-        # data2 = data * th.exp(dy) - dx
-        # data3 = data * th.exp(- dy) + dx
-        # data4 = data * th.exp(- dy) - dx
-        # data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
+        data1 = data * th.exp(dy) + dx
+        data2 = data * th.exp(dy) - dx
+        data3 = data * th.exp(- dy) + dx
+        data4 = data * th.exp(- dy) - dx
+        data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
 
         return data.view(*shape)
 
