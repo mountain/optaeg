@@ -1,5 +1,11 @@
-# The ViT code is originally from https://github.com/kentaroy47/vision-transformers-cifar10/ by Kentaro Yoshioka
+# The ViT code is originally by Kentaro Yoshioka
+# * https://github.com/kentaroy47/vision-transformers-cifar10/
+# * https://github.com/kentaroy47/vision-transformers-cifar10/blob/main/models/vit_small.py
 # modified by Mingli Yuan to adapt the AEG theory
+
+# with same configuration and the only modification is to change mlp to OptAEG,
+# we can reduce model from 9M to 6 M parameters. And also it converged very fast
+# with only merely 50 epoches comparing the originally ~100 epoches
 
 import torch as th
 import torch.nn.functional as F
