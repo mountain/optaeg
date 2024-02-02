@@ -5,7 +5,8 @@
 
 # with same configuration and the only modification is to change mlp to OptAEG,
 # we can reduce model from 9M to 6 M parameters. And also it converged very fast
-# with only merely 50 epoches comparing the originally ~100 epoches
+# with only merely 50 epoches comparing the originally ~100 epoches.
+# The accuracy are both around 80%.
 
 import torch as th
 import torch.nn.functional as F
