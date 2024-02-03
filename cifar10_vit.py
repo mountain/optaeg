@@ -48,11 +48,8 @@ class OptAEGV1(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.iscale = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.weight1 = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.bias1 = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.weight2 = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.bias2 = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
+        self.weight = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
+        self.bias = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
         self.a = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
         self.b = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
         self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
@@ -61,16 +58,16 @@ class OptAEGV1(nn.Module):
     @th.compile
     def forward(self, data: Tensor) -> Tensor:
         shape = data.size()
-        #data = (data - data.mean()) / data.std() * self.iscale
         data = data.flatten(0)
 
-        dx = th.e * th.tanh(self.weight2 * data + self.bias2)
+        dx = th.e * th.tanh(self.weight * data + self.bias)
         dy = th.e * th.tanh(data)
 
         data1 = data * th.exp(dy) + dx
         data2 = data * th.exp(dy) - dx
         data3 = data * th.exp(- dy) + dx
         data4 = data * th.exp(- dy) - dx
+
         data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
 
         return data.view(*shape)
