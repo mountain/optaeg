@@ -189,7 +189,8 @@ class ViT(nn.Module):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
-        self.to_latent = nn.Identity()
+        # self.to_latent = nn.Identity()
+        self.to_latent = OptAEGV1()
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),
