@@ -4,4 +4,6 @@ torchtext
 lightning[extra]
 einops
 
+portalocker
+torchdata
 dysts
