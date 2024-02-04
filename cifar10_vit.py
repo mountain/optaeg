@@ -73,6 +73,76 @@ class OptAEGV1(nn.Module):
         return data.view(*shape)
 
 
+def multiplier(factor1, factor2):
+    import numpy as np
+    lcm = np.lcm(factor1, factor2).item()
+    return lcm, lcm // factor1, lcm // factor2
+
+
+# semi tensor product
+def stp(m1, m2):
+    sz1, sz2 = m1.size(), m2.size()
+    _, c1, c2 = multiplier(sz1[2], sz2[1])
+    b = max(sz1[0], sz2[0])
+    f = th.ones(b, 1, 1, device=m1.device)
+    k1 = th.kron(m1, th.eye(c1, device=m1.device).view(1, c1, c1))
+    k2 = th.kron(m2, th.eye(c2, device=m2.device).view(1, c2, c2))
+    k1, k2 = k1 * f, k2 * f
+    return th.bmm(k1, k2)
+
+
+class OptAEGSTP(nn.Module):
+
+    def __init__(self, in_channel=1, out_channel=1, in_spatio=1, out_spatio=1, out_shape=(-1,1,1)):
+        super().__init__()
+
+        self.in_channel = in_channel
+        self.out_channel = out_channel
+        self.in_spatio = in_spatio
+        self.out_spatio = out_spatio
+        self.out_shape = out_shape
+
+        channel_dim, _, _ = multiplier(in_channel, out_channel)
+        spatio_dim, _, _ = multiplier(in_spatio, out_spatio)
+        self.channel_expansion = nn.Parameter(th.normal(0, 1, (1, channel_dim, channel_dim)))
+        self.spatio_expansion = nn.Parameter(th.normal(0, 1, (1, spatio_dim, spatio_dim)))
+        self.channel_reduction = nn.Parameter(th.normal(0, 1, (1, out_channel, channel_dim)))
+        self.spatio_reduction = nn.Parameter(th.normal(0, 1, (1, spatio_dim, out_spatio)))
+
+        self.weight = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.bias = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.a = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.b = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.d = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+
+    @th.compile
+    def forward(self, data: Tensor) -> Tensor:
+        shape = data.size()
+        if len(data.size()) > 2:
+            data = data.flatten(2)
+        elif len(data.size()) == 2:
+            data = data.view(-1, shape[1], 1)
+
+        data = stp(self.channel_expansion, data)
+        data = stp(data, self.spatio_expansion)
+
+        dx = th.e * th.tanh(self.weight * data + self.bias)
+        dy = th.e * th.tanh(data)
+
+        data1 = data * th.exp(dy) + dx
+        data2 = data * th.exp(dy) - dx
+        data3 = data * th.exp(- dy) + dx
+        data4 = data * th.exp(- dy) - dx
+
+        data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
+
+        data = stp(self.channel_reduction, data)
+        data = stp(data, self.spatio_reduction)
+
+        return data.view(*self.out_shape)
+
+
 # classes
 
 class PreNorm(nn.Module):
