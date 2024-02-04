@@ -82,13 +82,21 @@ def multiplier(factor1, factor2):
 # semi tensor product
 def stp(m1, m2):
     sz1, sz2 = m1.size(), m2.size()
+    # print('m1,m2', m1.size(), m2.size())
     _, c1, c2 = multiplier(sz1[2], sz2[1])
+    # print('multiplier', _, c1, c2)
     b = max(sz1[0], sz2[0])
-    f = th.ones(b, 1, 1, device=m1.device)
+    f = th.zeros(b, 1, 1, device=m1.device)
     k1 = th.kron(m1, th.eye(c1, device=m1.device).view(1, c1, c1))
     k2 = th.kron(m2, th.eye(c2, device=m2.device).view(1, c2, c2))
-    k1, k2 = k1 * f, k2 * f
-    return th.bmm(k1, k2)
+    # print('k1,k2', k1.size(), k2.size())
+    if sz1[0] != b:
+        k1 = k1.repeat(b, 1, 1)
+    if sz2[0] != b:
+        k2 = k2.repeat(b, 1, 1)
+    result = th.bmm(k1, k2)
+    # print('result', result.size())
+    return result
 
 
 class OptAEGSTP(nn.Module):
@@ -104,25 +112,26 @@ class OptAEGSTP(nn.Module):
 
         channel_dim, _, _ = multiplier(in_channel, out_channel)
         spatio_dim, _, _ = multiplier(in_spatio, out_spatio)
-        self.channel_expansion = nn.Parameter(th.normal(0, 1, (1, channel_dim, channel_dim)))
-        self.spatio_expansion = nn.Parameter(th.normal(0, 1, (1, spatio_dim, spatio_dim)))
+        self.channel_expansion = nn.Parameter(th.normal(0, 1, (1, channel_dim, in_channel)))
+        self.spatio_expansion = nn.Parameter(th.normal(0, 1, (1, in_spatio, spatio_dim)))
         self.channel_reduction = nn.Parameter(th.normal(0, 1, (1, out_channel, channel_dim)))
         self.spatio_reduction = nn.Parameter(th.normal(0, 1, (1, spatio_dim, out_spatio)))
 
-        self.weight = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
-        self.bias = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
+        self.weight = nn.Parameter(th.normal(0, 1, (1, channel_dim, spatio_dim)))
+        self.bias = nn.Parameter(th.normal(0, 1, (1, channel_dim, spatio_dim)))
         self.a = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
         self.b = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
         self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
         self.d = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
 
-    @th.compile
     def forward(self, data: Tensor) -> Tensor:
         shape = data.size()
         if len(data.size()) > 2:
             data = data.flatten(2)
         elif len(data.size()) == 2:
             data = data.view(-1, shape[1], 1)
+
+        # data = (data - data.mean()) / data.std()
 
         data = stp(self.channel_expansion, data)
         data = stp(data, self.spatio_expansion)
@@ -137,8 +146,8 @@ class OptAEGSTP(nn.Module):
 
         data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
 
-        data = stp(self.channel_reduction, data)
         data = stp(data, self.spatio_reduction)
+        data = stp(self.channel_reduction, data)
 
         return data.view(*self.out_shape)
 
