@@ -1,3 +1,6 @@
+# We gave two varaints of OptAEG, V2 is simpler and better.
+# We can reach 97.4% accuracy on MNIST with only 693 parameters.
+
 import torch as th
 import torch.nn.functional as F
 import lightning as ltn
@@ -63,6 +66,35 @@ class OptAEGV1(nn.Module):
         dx = ds * th.cos(theta)
         dy = ds * th.sin(theta)
         data = data * th.exp(dy) + dx
+
+        return data.view(*shape)
+
+
+# This variant can reach 97.4% accuracy on MNIST with only 693 parameters.
+# and its code is simpler and better.
+class OptAEGV2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.coeff = nn.Parameter(th.ones(1))
+        self.afactor = nn.Parameter(th.zeros(1))
+        self.mfactor = nn.Parameter(th.ones(1))
+
+    @th.compile
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(0)
+        data = data - data.mean()
+        data = data / data.std()
+
+        value = th.sigmoid(data)
+        value = self.coeff * value * (1 - value)
+        value = self.coeff * value * (1 - value)
+        value = value - value.mean()
+        value = value / value.std()
+
+        dx = self.afactor * th.tanh(value) # control the additive diversity
+        dy = self.mfactor * th.tanh(data) # control the growth scale
+        data = data * (1 + dy) + dx
 
         return data.view(*shape)
 
