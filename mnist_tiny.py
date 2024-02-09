@@ -1,5 +1,5 @@
 # We gave two varaints of OptAEG, V2 is simpler and better.
-# We can reach 97.4% accuracy on MNIST with only 693 parameters.
+# We can reach 97.8% accuracy on MNIST with only 693 parameters.
 
 import torch as th
 import torch.nn.functional as F
@@ -70,7 +70,7 @@ class OptAEGV1(nn.Module):
         return data.view(*shape)
 
 
-# This variant can reach 97.4% accuracy on MNIST with only 693 parameters.
+# This variant can reach 97.8% accuracy on MNIST with only 693 parameters.
 # and its code is simpler and better.
 class OptAEGV2(nn.Module):
     def __init__(self):
