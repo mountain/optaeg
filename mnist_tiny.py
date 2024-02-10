@@ -166,16 +166,16 @@ class MNISTModel(ltn.LightningModule):
         print()
 
 
-class MNIST_OptAEGV1(MNISTModel):
+class MNIST_OptAEGV2(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
         self.conv0 = nn.Conv2d(1, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon0 = OptAEGV1()
+        self.lnon0 = OptAEGV2()
         self.conv1 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon1 = OptAEGV1()
+        self.lnon1 = OptAEGV2()
         self.conv2 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon2 = OptAEGV1()
+        self.lnon2 = OptAEGV2()
         self.fc = nn.Linear(4 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
@@ -198,7 +198,7 @@ def test_best():
     import glob
     fname = sorted(glob.glob('best-*.ckpt'), reverse=True)[0]
     with open(fname, 'rb') as f:
-        model = MNIST_OptAEGV1()
+        model = MNIST_OptAEGV2()
         checkpoint = th.load(f)
         model.load_state_dict(checkpoint['state_dict'], strict=False)
         model = model.cpu()
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                          callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=30)])
 
     print('construct model...')
-    model = MNIST_OptAEGV1()
+    model = MNIST_OptAEGV2()
 
     print('training...')
     trainer.fit(model, train_loader, val_loader)
