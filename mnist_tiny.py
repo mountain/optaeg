@@ -1,5 +1,10 @@
-# We gave two varaints of OptAEG, V2 is simpler and better.
-# We can reach 97.8% accuracy on MNIST with only 693 parameters.
+# We gave three varaints of OptAEG, V3 is the best.
+# We can reach 98.2% accuracy on MNIST with only 702 parameters.
+#
+#   variant      accuracy      paramters
+#      v3         98.2%           702
+#      v2         97.8%           693
+#      v1         97.3%           687
 
 import torch as th
 import torch.nn.functional as F
