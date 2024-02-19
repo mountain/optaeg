@@ -107,7 +107,7 @@ class OptAEGV2(nn.Module):
 # This variant can reach 98.2% accuracy on MNIST with only 702 parameters.
 # and the performance is better and quite stable. It is derived from transformer.
 class OptAEGV3(nn.Module):
-    def __init__(self, heads):
+    def __init__(self):
         super().__init__()
         self.vx = nn.Parameter(th.zeros(1, 1, 1))
         self.vy = nn.Parameter(th.ones(1, 1, 1))
