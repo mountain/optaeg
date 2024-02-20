@@ -205,7 +205,7 @@ class MNISTModel(ltn.LightningModule):
         print()
 
 
-class MNIST_OptAEGV2(MNISTModel):
+class MNIST_OptAEGV3(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
@@ -237,7 +237,7 @@ def test_best():
     import glob
     fname = sorted(glob.glob('best-*.ckpt'), reverse=True)[0]
     with open(fname, 'rb') as f:
-        model = MNIST_OptAEGV2()
+        model = MNIST_OptAEGV3()
         checkpoint = th.load(f)
         model.load_state_dict(checkpoint['state_dict'], strict=False)
         model = model.cpu()
@@ -260,7 +260,7 @@ def test_best():
                     print('')
         print('')
         print('Accuracy: %2.5f' % (success / counter))
-        th.save(model, 'mnist-optaeg-v1.pt')
+        th.save(model, 'mnist-optaeg-v3.pt')
 
 
 if __name__ == '__main__':
@@ -287,7 +287,7 @@ if __name__ == '__main__':
                          callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=30)])
 
     print('construct model...')
-    model = MNIST_OptAEGV2()
+    model = MNIST_OptAEGV3()
 
     print('training...')
     trainer.fit(model, train_loader, val_loader)
