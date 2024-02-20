@@ -182,7 +182,7 @@ def test_best():
                     print('')
         print('')
         print('Accuracy: %2.5f' % (success / counter))
-        th.save(model, 'mnist-optaeg-v1.pt')
+        th.save(model, 'mnist-optaeg-v3.pt')
 
 
 if __name__ == '__main__':
