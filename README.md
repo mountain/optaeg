@@ -1,2 +1,2 @@
-# optaeg-v1
+# optaeg
 Combine neural networks and Arithmetic Expression Geometry
