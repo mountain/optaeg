@@ -55,6 +55,58 @@ class OptAEGV1(nn.Module):
         return data.view(*shape)
 
 
+class OptAEGV4(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.uxr = nn.Parameter(th.zeros(1, 1))
+        self.uyr = nn.Parameter(th.ones(1, 1))
+        self.uxi = nn.Parameter(th.zeros(1, 1))
+        self.uyi = nn.Parameter(th.ones(1, 1))
+        self.vxr = nn.Parameter(th.zeros(1, 1))
+        self.vyr = nn.Parameter(th.ones(1, 1))
+        self.vxi = nn.Parameter(th.zeros(1, 1))
+        self.vyi = nn.Parameter(th.ones(1, 1))
+        self.wxr = nn.Parameter(th.zeros(1, 1))
+        self.wyr = nn.Parameter(th.ones(1, 1))
+        self.wxi = nn.Parameter(th.zeros(1, 1))
+        self.wyi = nn.Parameter(th.ones(1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
+        self.reduce = nn.Linear(3, 3, bias=False)
+
+    def flow(self, dx, dy, data):
+        return data * (1 + dy) + dx
+
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(1)
+
+        ur = self.flow(self.uxr, self.uyr, data)
+        ui = self.flow(self.uxi, self.uyi, data)
+        vr = self.flow(self.vxr, self.vyr, data)
+        vi = self.flow(self.vxi, self.vyi, data)
+        wr = self.flow(self.wxr, self.wyr, data)
+        wi = self.flow(self.wxi, self.wyi, data)
+
+        dxr = self.afactor * (vr * th.sigmoid(wr))
+        dxi = self.afactor * (vi * th.sigmoid(wi))
+        dyr = self.mfactor * th.tanh(ur)
+        dyi = self.mfactor * th.tanh(ui)
+        dx = dxr + 1j * dxi
+        dy = dyr + 1j * dyi
+
+        flow = self.flow(dx, dy, data)
+        flowr = th.real(flow).unsqueeze(-1)
+        flowi = th.imag(flow).unsqueeze(-1)
+        reduce = self.reduce(th.cat((data.unsqueeze(-1), flowr, flowi), dim=-1))
+
+        base = reduce[:, :, 0]
+        base = (base - base.mean()) / base.std()
+        result = self.flow(reduce[:, :, 1], reduce[:, :, 2], base)
+
+        return result.view(*shape)
+
+
 class Conv2d(nn.Module):
     def __init__(self, in_channels, output_channels, kernel_size=1, padding=0, stride=1, dilation=1, groups=1, bias=True, kernels_per_layer=1):
         super(Conv2d, self).__init__()
@@ -143,11 +195,11 @@ class MNIST_OptAEGV1(MNISTModel):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
         self.conv0 = nn.Conv2d(1, 256, kernel_size=3, padding=1, bias=False)
-        self.lnon0 = OptAEGV1()
+        self.lnon0 = OptAEGV4()
         self.conv1 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
-        self.lnon1 = OptAEGV1()
+        self.lnon1 = OptAEGV4()
         self.conv2 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
-        self.lnon2 = OptAEGV1()
+        self.lnon2 = OptAEGV4()
         self.fc = nn.Linear(256 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
