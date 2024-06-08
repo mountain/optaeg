@@ -144,6 +144,8 @@ class OptAEGV4(nn.Module):
         super().__init__()
         self.coeffr = nn.Parameter(th.rand(1, 1))
         self.coeffi = nn.Parameter(th.rand(1, 1))
+        self.scaler = nn.Parameter(th.ones(1, 1))
+        self.scalei = nn.Parameter(th.ones(1, 1))
         self.uxr = nn.Parameter(th.zeros(1, 1))
         self.uyr = nn.Parameter(th.ones(1, 1))
         self.uxi = nn.Parameter(th.zeros(1, 1))
@@ -172,10 +174,10 @@ class OptAEGV4(nn.Module):
         ui = self.flow(self.uxi, self.uyi, data)
         vr = self.recur(self.coeffr, th.sigmoid(data))
         vr = self.recur(self.coeffr, vr)
-        vr = self.recur(self.coeffr, vr)
+        vr = self.recur(self.coeffr, vr) * self.scaler
         vi = self.recur(self.coeffi, th.sigmoid(data))
         vi = self.recur(self.coeffi, vi)
-        vi = self.recur(self.coeffi, vi)
+        vi = self.recur(self.coeffi, vi) * self.scalei
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
