@@ -167,18 +167,16 @@ class OptAEGV4(nn.Module):
         data = data - data.mean()
         data = data / data.std()
 
-        b = shape[0]
-        datav = data.view(b, -1)
-        ur = self.flow(self.uxr, self.uyr, datav)
-        ui = self.flow(self.uxi, self.uyi, datav)
-        vr = self.flow(self.vxr, self.vyr, datav)
-        vi = self.flow(self.vxi, self.vyi, datav)
-        wr = self.flow(self.wxr, self.wyr, datav)
-        wi = self.flow(self.wxi, self.wyi, datav)
+        ur = self.flow(self.uxr, self.uyr, data)
+        ui = self.flow(self.uxi, self.uyi, data)
+        vr = self.flow(self.vxr, self.vyr, data)
+        vi = self.flow(self.vxi, self.vyi, data)
+        wr = self.flow(self.wxr, self.wyr, data)
+        wi = self.flow(self.wxi, self.wyi, data)
 
         dxr = self.afactor * (vr * th.sigmoid(wr))
-        dxi = self.afactor * (vi * th.sigmoid(wi))
-        dyr = self.mfactor * th.tanh(ur)
+        dxi = self.mfactor * th.tanh(ur)
+        dyr = self.afactor * (vi * th.sigmoid(wi))
         dyi = self.mfactor * th.tanh(ui)
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
