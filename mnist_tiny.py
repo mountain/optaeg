@@ -156,8 +156,6 @@ class OptAEGV4(nn.Module):
         self.wyi = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
-        self.abias = nn.Parameter(th.zeros(1, 1))
-        self.mbias = nn.Parameter(th.zeros(1, 1))
         self.mapping = nn.Linear(2, 1)
 
     def flow(self, dx, dy, data):
@@ -176,10 +174,10 @@ class OptAEGV4(nn.Module):
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
-        dxr = self.afactor * (vr * th.sigmoid(wr)) + self.abias
-        dxi = self.afactor * (vi * th.sigmoid(wi)) + self.abias
-        dyr = self.mfactor * th.tanh(ur) + self.mbias
-        dyi = self.mfactor * th.tanh(ui) + self.mbias
+        dxr = self.afactor * (vr * th.sigmoid(wr))
+        dxi = self.afactor * (vi * th.sigmoid(wi))
+        dyr = self.mfactor * th.tanh(ur)
+        dyi = self.mfactor * th.tanh(ui)
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
 
