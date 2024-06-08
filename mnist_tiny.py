@@ -184,7 +184,7 @@ class OptAEGV4(nn.Module):
         flowr = th.real(flow).unsqueeze(-1)
         flowi = th.imag(flow).unsqueeze(-1)
         flow = th.cat((flowr, flowi), dim=-1)
-        flow = self.reduce(flow)
+        flow = self.reduce(flow).squeeze(-1)
         flow = flow - flow.mean()
         flow = flow / flow.std()
 
