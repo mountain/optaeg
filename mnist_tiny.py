@@ -150,6 +150,10 @@ class OptAEGV4(nn.Module):
         self.uyr = nn.Parameter(th.ones(1, 1))
         self.uxi = nn.Parameter(th.zeros(1, 1))
         self.uyi = nn.Parameter(th.ones(1, 1))
+        self.vxr = nn.Parameter(th.zeros(1, 1))
+        self.vyr = nn.Parameter(th.ones(1, 1))
+        self.vxi = nn.Parameter(th.zeros(1, 1))
+        self.vyi = nn.Parameter(th.ones(1, 1))
         self.wxr = nn.Parameter(th.zeros(1, 1))
         self.wyr = nn.Parameter(th.ones(1, 1))
         self.wxi = nn.Parameter(th.zeros(1, 1))
@@ -172,10 +176,12 @@ class OptAEGV4(nn.Module):
 
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
-        vr = self.recur(self.coeffr, th.sigmoid(data))
+        vr = self.flow(self.vxr, self.vyr, data)
+        vr = self.recur(self.coeffr, th.sigmoid(vr))
         vr = self.recur(self.coeffr, vr)
         vr = self.recur(self.coeffr, vr) * self.scaler
-        vi = self.recur(self.coeffi, th.sigmoid(data))
+        vi = self.flow(self.vxi, self.vyi, data)
+        vi = self.recur(self.coeffi, th.sigmoid(vi))
         vi = self.recur(self.coeffi, vi)
         vi = self.recur(self.coeffi, vi) * self.scalei
         wr = self.flow(self.wxr, self.wyr, data)
