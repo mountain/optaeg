@@ -176,8 +176,8 @@ class OptAEGV4(nn.Module):
 
         dxr = self.afactor * (vr * th.sigmoid(wr))
         dxi = self.mfactor * th.tanh(ur)
-        dyr = self.afactor * (vi * th.sigmoid(wi))
-        dyi = self.mfactor * th.tanh(ui)
+        dyr = self.mfactor * th.tanh(ui)
+        dyi = self.afactor * (vi * th.sigmoid(wi))
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
 
