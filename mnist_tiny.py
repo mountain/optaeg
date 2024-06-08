@@ -160,10 +160,9 @@ class OptAEGV4(nn.Module):
         self.wyi = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
+        self.abias = nn.Parameter(th.zeros(1, 1))
+        self.mbias = nn.Parameter(th.ones(1, 1))
         self.mapping = nn.Linear(2, 1)
-
-    def recur(self, coeff, val):
-        return coeff * val * (1 - val)
 
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
@@ -177,20 +176,14 @@ class OptAEGV4(nn.Module):
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
         vr = self.flow(self.vxr, self.vyr, data)
-        vr = self.recur(self.coeffr, th.sigmoid(vr))
-        vr = self.recur(self.coeffr, vr)
-        vr = self.recur(self.coeffr, vr) * self.scaler
         vi = self.flow(self.vxi, self.vyi, data)
-        vi = self.recur(self.coeffi, th.sigmoid(vi))
-        vi = self.recur(self.coeffi, vi)
-        vi = self.recur(self.coeffi, vi) * self.scalei
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
-        dxr = self.afactor * (vr * th.sigmoid(wr))
-        dxi = self.afactor * (vi * th.sigmoid(wi))
-        dyr = self.mfactor * th.tanh(ur)
-        dyi = self.mfactor * th.tanh(ui)
+        dxr = self.afactor * (vr * th.sigmoid(wr)) + self.abias
+        dxi = self.afactor * (vi * th.sigmoid(wi)) + self.abias
+        dyr = self.mfactor * th.tanh(ur) + self.mbias
+        dyi = self.mfactor * th.tanh(ui) + self.mbias
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
 
