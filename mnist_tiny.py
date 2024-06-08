@@ -158,14 +158,8 @@ class OptAEGV4(nn.Module):
         self.wyr = nn.Parameter(th.ones(1, 1))
         self.wxi = nn.Parameter(th.zeros(1, 1))
         self.wyi = nn.Parameter(th.ones(1, 1))
-        self.arfactor = nn.Parameter(th.zeros(1, 1))
-        self.aifactor = nn.Parameter(th.zeros(1, 1))
-        self.mrfactor = nn.Parameter(th.ones(1, 1))
-        self.mifactor = nn.Parameter(th.ones(1, 1))
-        self.arbias = nn.Parameter(th.zeros(1, 1))
-        self.aibias = nn.Parameter(th.zeros(1, 1))
-        self.mrbias = nn.Parameter(th.zeros(1, 1))
-        self.mibias = nn.Parameter(th.zeros(1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
         self.mapping = nn.Linear(2, 1)
 
     def flow(self, dx, dy, data):
@@ -184,10 +178,10 @@ class OptAEGV4(nn.Module):
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
-        dxr = self.arfactor * (vr * th.sigmoid(wr)) + self.arbias
-        dxi = self.aifactor * (vi * th.sigmoid(wi)) + self.aibias
-        dyr = self.mrfactor * th.tanh(ur) + self.mrbias
-        dyi = self.mifactor * th.tanh(ui) + self.mibias
+        dxr = self.afactor * (vr * th.sigmoid(wr))
+        dxi = self.afactor * (vi * th.sigmoid(wi))
+        dyr = self.mfactor * th.tanh(ur)
+        dyi = self.mfactor * th.tanh(ui)
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
 
