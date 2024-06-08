@@ -170,14 +170,18 @@ class OptAEGV4(nn.Module):
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
         vr = self.flow(self.vxr, self.vyr, data)
+        vr = self.flow(self.vxr, self.vyr, vr)
+        vr = self.flow(self.vxr, self.vyr, vr)
         vi = self.flow(self.vxi, self.vyi, data)
+        vi = self.flow(self.vxi, self.vyi, vi)
+        vi = self.flow(self.vxi, self.vyi, vi)
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
         dxr = self.afactor * (vr * th.sigmoid(wr))
-        dxi = self.mfactor * th.tanh(ur)
-        dyr = self.mfactor * th.tanh(ui)
-        dyi = self.afactor * (vi * th.sigmoid(wi))
+        dxi = self.afactor * (vi * th.sigmoid(wi))
+        dyr = self.mfactor * th.tanh(ur)
+        dyi = self.mfactor * th.tanh(ui)
         dx = dxr + 1j * dxi
         dy = dyr + 1j * dyi
 
