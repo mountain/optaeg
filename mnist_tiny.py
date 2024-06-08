@@ -156,7 +156,7 @@ class OptAEGV4(nn.Module):
         self.wyi = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
-        self.mapping = nn.Linear(2, 1)
+        self.mapping = nn.Linear(2, 2)
 
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
@@ -164,8 +164,6 @@ class OptAEGV4(nn.Module):
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
-        data = data - data.mean()
-        data = data / data.std()
 
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
@@ -186,9 +184,12 @@ class OptAEGV4(nn.Module):
         flowi = th.imag(flow).unsqueeze(-1)
         flow = th.cat((flowr, flowi), dim=-1)
         flow = self.mapping(flow)
-        flow = flow.squeeze(-1)
 
-        return (data + flow).view(*shape)
+        data = data - data.mean()
+        data = data / data.std()
+        data = self.flow(flow[:, :, 0], flow[:, :, 1], data)
+
+        return data.view(*shape)
 
 
 class MNISTModel(ltn.LightningModule):
