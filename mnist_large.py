@@ -194,13 +194,13 @@ class MNIST_OptAEGV1(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
-        self.conv0 = nn.Conv2d(1, 256, kernel_size=3, padding=1, bias=False)
+        self.conv0 = nn.Conv2d(1, 16, kernel_size=5, padding=1, bias=False)
         self.lnon0 = OptAEGV4()
-        self.conv1 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(16, 16, kernel_size=3, padding=1)
         self.lnon1 = OptAEGV4()
-        self.conv2 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, padding=1)
         self.lnon2 = OptAEGV4()
-        self.fc = nn.Linear(256 * 3 * 3, 10, bias=False)
+        self.fc = nn.Linear(16 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
         x = self.conv0(x)
