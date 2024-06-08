@@ -184,10 +184,10 @@ class OptAEGV4(nn.Module):
         flowr = th.real(flow).unsqueeze(-1)
         flowi = th.imag(flow).unsqueeze(-1)
         flow = th.cat((flowr, flowi), dim=-1)
+        velo = self.mapping(th.cat((data.unsqueeze(-1), flow), dim=-1))
+
         flow = self.reduce(flow)
         flow = (flow - flow.mean()) / flow.std()
-
-        velo = self.mapping(th.cat((data.unsqueeze(-1), flow), dim=-1))
         data = self.flow(velo[:, :, 0], velo[:, :, 1], flow.squeeze(-1))
         return data.view(*shape)
 
