@@ -161,7 +161,7 @@ class OptAEGV4(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
         self.abias = nn.Parameter(th.zeros(1, 1))
-        self.mbias = nn.Parameter(th.ones(1, 1))
+        self.mbias = nn.Parameter(th.zeros(1, 1))
         self.mapping = nn.Linear(2, 1)
 
     def flow(self, dx, dy, data):
