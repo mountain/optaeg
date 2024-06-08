@@ -142,10 +142,6 @@ class OptAEGV3(nn.Module):
 class OptAEGV4(nn.Module):
     def __init__(self):
         super().__init__()
-        self.coeffr = nn.Parameter(th.rand(1, 1))
-        self.coeffi = nn.Parameter(th.rand(1, 1))
-        self.scaler = nn.Parameter(th.ones(1, 1))
-        self.scalei = nn.Parameter(th.ones(1, 1))
         self.uxr = nn.Parameter(th.zeros(1, 1))
         self.uyr = nn.Parameter(th.ones(1, 1))
         self.uxi = nn.Parameter(th.zeros(1, 1))
