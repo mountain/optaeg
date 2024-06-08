@@ -188,8 +188,8 @@ class OptAEGV4(nn.Module):
         flow = flow - flow.mean()
         flow = flow / flow.std()
 
-        velo = self.mapping(data)
-        data = self.flow(velo[:, 0], velo[:, 1], flow)
+        velo = self.mapping(data.unsqueeze(-1))
+        data = self.flow(velo[:, :, 0], velo[:, :, 1], flow)
         return data.view(*shape)
 
 
