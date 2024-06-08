@@ -142,14 +142,12 @@ class OptAEGV3(nn.Module):
 class OptAEGV4(nn.Module):
     def __init__(self):
         super().__init__()
+        self.coeffr = nn.Parameter(th.rand(1, 1))
+        self.coeffi = nn.Parameter(th.rand(1, 1))
         self.uxr = nn.Parameter(th.zeros(1, 1))
         self.uyr = nn.Parameter(th.ones(1, 1))
         self.uxi = nn.Parameter(th.zeros(1, 1))
         self.uyi = nn.Parameter(th.ones(1, 1))
-        self.vxr = nn.Parameter(th.zeros(1, 1))
-        self.vyr = nn.Parameter(th.ones(1, 1))
-        self.vxi = nn.Parameter(th.zeros(1, 1))
-        self.vyi = nn.Parameter(th.ones(1, 1))
         self.wxr = nn.Parameter(th.zeros(1, 1))
         self.wyr = nn.Parameter(th.ones(1, 1))
         self.wxi = nn.Parameter(th.zeros(1, 1))
@@ -157,6 +155,9 @@ class OptAEGV4(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
         self.mapping = nn.Linear(2, 1)
+
+    def recur(self, coeff, val):
+        return coeff * val * (1 - val)
 
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
@@ -169,12 +170,12 @@ class OptAEGV4(nn.Module):
 
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
-        vr = self.flow(self.vxr, self.vyr, data)
-        vr = self.flow(self.vxr, self.vyr, vr)
-        vr = self.flow(self.vxr, self.vyr, vr)
-        vi = self.flow(self.vxi, self.vyi, data)
-        vi = self.flow(self.vxi, self.vyi, vi)
-        vi = self.flow(self.vxi, self.vyi, vi)
+        vr = self.recur(self.coeffr, data)
+        vr = self.recur(self.coeffr, vr)
+        vr = self.recur(self.coeffr, vr)
+        vi = self.recur(self.coeffi, data)
+        vi = self.recur(self.coeffi, vi)
+        vi = self.recur(self.coeffi, vi)
         wr = self.flow(self.wxr, self.wyr, data)
         wi = self.flow(self.wxi, self.wyi, data)
 
