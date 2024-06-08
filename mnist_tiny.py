@@ -1,7 +1,8 @@
 # We gave three varaints of OptAEG, V3 is the best.
 # We can reach 98.2% accuracy on MNIST with only 702 parameters.
 #
-#   variant      accuracy      paramters
+#   variant      accuracy      paramters      comments
+#      v4         98.2%           735         more stable
 #      v3         98.2%           702
 #      v2         97.8%           693
 #      v1         97.3%           687
