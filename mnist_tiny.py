@@ -188,7 +188,7 @@ class OptAEGV4(nn.Module):
         flow = self.mapping(flow)
         flow = flow.squeeze(-1)
 
-        return flow.view(*shape)
+        return data + flow.view(*shape)
 
 
 class MNISTModel(ltn.LightningModule):
