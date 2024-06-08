@@ -156,7 +156,7 @@ class OptAEGV4(nn.Module):
         self.wyi = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
-        self.reduce = nn.Linear(3, 3)
+        self.reduce = nn.Linear(3, 3, bias=False)
 
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
