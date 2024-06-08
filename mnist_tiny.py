@@ -170,10 +170,10 @@ class OptAEGV4(nn.Module):
 
         ur = self.flow(self.uxr, self.uyr, data)
         ui = self.flow(self.uxi, self.uyi, data)
-        vr = self.recur(self.coeffr, data)
+        vr = self.recur(self.coeffr, th.sigmoid(data))
         vr = self.recur(self.coeffr, vr)
         vr = self.recur(self.coeffr, vr)
-        vi = self.recur(self.coeffi, data)
+        vi = self.recur(self.coeffi, th.sigmoid(data))
         vi = self.recur(self.coeffi, vi)
         vi = self.recur(self.coeffi, vi)
         wr = self.flow(self.wxr, self.wyr, data)
