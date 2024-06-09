@@ -164,7 +164,6 @@ class OptAEGV4(nn.Module):
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
-    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)

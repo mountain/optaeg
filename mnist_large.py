@@ -37,7 +37,6 @@ class OptAEGV1(nn.Module):
         self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
         self.d = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
 
-    @th.compile
     def forward(self, data: Tensor) -> Tensor:
         shape = data.size()
         data = (data - data.mean()) / data.std() * self.iscale
@@ -78,7 +77,6 @@ class OptAEGV4(nn.Module):
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
-    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
