@@ -139,9 +139,12 @@ class OptAEGV3(nn.Module):
         return data.view(*shape)
 
 
+
+
 class OptAEGV4(nn.Module):
     def __init__(self):
         super().__init__()
+        self.expand = nn.Linear(1, 2, bias=False)
         self.uxr = nn.Parameter(th.zeros(1, 1))
         self.uyr = nn.Parameter(th.ones(1, 1))
         self.uxi = nn.Parameter(th.zeros(1, 1))
@@ -161,6 +164,7 @@ class OptAEGV4(nn.Module):
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
+    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
@@ -176,12 +180,12 @@ class OptAEGV4(nn.Module):
         dxi = self.afactor * (vi * th.sigmoid(wi))
         dyr = self.mfactor * th.tanh(ur)
         dyi = self.mfactor * th.tanh(ui)
-        dx = dxr + 1j * dxi
-        dy = dyr + 1j * dyi
 
-        flow = self.flow(dx, dy, data)
-        flowr = th.real(flow).unsqueeze(-1)
-        flowi = th.imag(flow).unsqueeze(-1)
+        compl = self.expand(data.unsqueeze(-1))
+        datar = compl[:, :, 0]
+        datai = compl[:, :, 1]
+        flowr = datar * dyr - datai * dyi + dxr
+        flowi = datar * dyi + datai * dyr + dxi
         reduce = self.reduce(th.cat((data.unsqueeze(-1), flowr, flowi), dim=-1))
 
         base = reduce[:, :, 0]
