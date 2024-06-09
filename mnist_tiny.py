@@ -164,6 +164,7 @@ class OptAEGV4(nn.Module):
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
+    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
@@ -185,7 +186,7 @@ class OptAEGV4(nn.Module):
         datai = compl[:, :, 1]
         flowr = datar * dyr - datai * dyi + dxr
         flowi = datar * dyi + datai * dyr + dxi
-        reduce = self.reduce(th.cat((data.unsqueeze(-1), flowr, flowi), dim=-1))
+        reduce = self.reduce(th.cat((data.unsqueeze(-1), flowr.unsqueeze(-1), flowi.unsqueeze(-1)), dim=-1))
 
         base = reduce[:, :, 0]
         base = (base - base.mean()) / base.std()
