@@ -22,7 +22,37 @@ elif th.backends.mps.is_available():
 else:
     accelerator = 'cpu'
 
-# All Comments are in English
+
+class OptAEGV3(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vx = nn.Parameter(th.zeros(1, 1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
+
+    @th.compile
+    def flow(self, dx, dy, data):
+        return data * (1 + dy) + dx
+
+    @th.compile
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(1)
+        data = data - data.mean()
+        data = data / data.std()
+
+        b = shape[0]
+        v = self.flow(self.vx, self.vy, data.view(b, -1, 1))
+        w = self.flow(self.wx, self.wy, data.view(b, -1, 1))
+
+        dx = self.afactor * th.sum(v * th.sigmoid(w), dim=-1)
+        dy = self.mfactor * th.tanh(data)
+        data = self.flow(dx, dy, data)
+
+        return data.view(*shape)
 
 
 def aeg_integrate(A_row, B_col):
@@ -219,13 +249,13 @@ class MNIST_AMP(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
-        self.conv0 = nn.Conv2d(1, 2, kernel_size=3, padding=1, bias=False)
-        self.act0 = nn.ReLU()
-        self.conv1 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
-        self.act1 = nn.ReLU()
-        self.conv2 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
-        self.act2 = nn.ReLU()
-        self.fc = FullConection(2 * 3 * 3, 10)
+        self.conv0 = nn.Conv2d(1, 4, kernel_size=3, padding=1, bias=False)
+        self.act0 = OptAEGV3()
+        self.conv1 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
+        self.act1 = OptAEGV3()
+        self.conv2 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
+        self.act2 = OptAEGV3()
+        self.fc = FullConection(4 * 3 * 3, 10)
 
     def forward(self, x):
         x = self.conv0(x)

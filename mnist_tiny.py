@@ -139,8 +139,6 @@ class OptAEGV3(nn.Module):
         return data.view(*shape)
 
 
-
-
 class OptAEGV4(nn.Module):
     def __init__(self):
         super().__init__()
