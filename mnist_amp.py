@@ -65,8 +65,8 @@ def aeg_integrate(A_row, B_col):
     # alternate to calculate result = (result + A_row[i]) * B_col[i]
     n = A_row.size(0)
     for a, m in zip(A_row, B_col):
-        a, m = a / n, m / n
-        result = (result + a) * (1 + m)
+        a, m = a / n, th.exp(th.log(m * m) / 2 / n)
+        result = (result + a) * m
 
     return result
 
