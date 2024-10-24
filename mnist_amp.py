@@ -295,13 +295,13 @@ class MNIST_AMP(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
-        self.conv0 = nn.Conv2d(1, 2, kernel_size=3, padding=1, bias=False)
+        self.conv0 = nn.Conv2d(1, 3, kernel_size=3, padding=1, bias=False)
         self.act0 = OptAEGV3()
-        self.conv1 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 3, kernel_size=3, padding=1, bias=False)
         self.act1 = OptAEGV3()
-        self.conv2 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1, bias=False)
         self.act2 = OptAEGV3()
-        self.fc = FullConection(2 * 3 * 3, 10)
+        self.fc = FullConection(3 * 3 * 3, 10)
         # self.fc = nn.Linear(2 * 3 * 3, 10)
 
     def forward(self, x):
