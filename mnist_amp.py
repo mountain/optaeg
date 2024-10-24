@@ -32,9 +32,11 @@ class OptAEGV3(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
+    @th.compile
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
+    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
@@ -144,6 +146,7 @@ def conv2d_aeg(input, kernel, stride=1, padding=0):
     return output
 
 
+@th.compile
 def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
     """
     优化后的 conv2d_aeg 函数，支持批次化操作。
@@ -226,6 +229,7 @@ def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
     return output
 
 
+@th.compile
 def batch_aeg_product_optimized(A, B):
     """
     优化后的 batch_aeg_product 函数
@@ -278,6 +282,7 @@ class FullConection(nn.Module):
     def reset_parameters(self):
         nn.init.kaiming_normal_(self.weight)
 
+    @th.compile
     def forward(self, input):
         expanded_weight = self.weight.expand(input.size(0), -1, -1)  # (batch_size, out_features, in_features)
         reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
@@ -303,6 +308,7 @@ class AEGConv2d(nn.Module):
     def reset_parameters(self):
         nn.init.kaiming_normal_(self.weight)
 
+    @th.compile
     def forward(self, input):
         return th.sigmoid(conv2d_aeg_optimized(
             input, self.weight, self.stride, self.padding
