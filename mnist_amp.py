@@ -52,13 +52,13 @@ class OptAEGV3(nn.Module):
         return data.view(*shape)
 
 
-def aeg_integrate(i, j, A_row, B_col):
+def aeg_integrate(i, j, A_row, B_col, initial=0):
     """
     A_row: a row of matrix A
     B_col: a column of matrix B
     return the result of the integration of A_row and B_col
     """
-    result = 0  # initialize the result
+    result = initial  # initialize the result
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
             result = result + x
@@ -157,9 +157,9 @@ class FullConection(nn.Module):
         nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
-        return batch_aeg_product(
+        return th.sigmoid(batch_aeg_product(
             self.weight.repeat(input.size(0), 1, 1), input.view(-1, input.size(1), 1)
-        ).squeeze(2) * self.proj(input)
+        ).squeeze(2)) * self.proj(input)
 
 
 class AEGConv2d(nn.Module):
