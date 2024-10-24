@@ -150,7 +150,7 @@ class FullConection(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.weight = nn.Parameter(th.Tensor(1, out_features, in_features))
-        self.proj = nn.linear(in_features, out_features)
+        self.proj = nn.Linear(in_features, out_features)
         self.reset_parameters()
 
     def reset_parameters(self):
