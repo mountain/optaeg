@@ -61,11 +61,11 @@ def aeg_integrate(i, j, A_row, B_col):
     result = 0  # initialize the result
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
-            result = result + x
-            result = result * th.tanh(y)
+            result = result + (x * th.cos(y))
+            result = result * (x * th.sin(y))
         else:
-            result = result + y
-            result = result * th.tanh(x)
+            result = result + (y * th.cos(x))
+            result = result * (y * th.sin(x))
 
     return result
 
