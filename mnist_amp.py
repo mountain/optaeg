@@ -32,11 +32,9 @@ class OptAEGV3(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
-    @th.compile
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
-    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
