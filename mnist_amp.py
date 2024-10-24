@@ -142,7 +142,7 @@ def conv2d_aeg(input, kernel, stride=1, padding=0):
                     # 遍历输入通道，进行逐元素卷积
                     for ic in range(in_channels):
                         region = input_padded[n, ic, h_start:h_end, w_start:w_end]
-                        output[n, oc, i, j] += aeg_integrate(region.flatten(), kernel[oc, ic, :, :].flatten())
+                        output[n, oc, i, j] += aeg_integrate(i, j, region.flatten(), kernel[oc, ic, :, :].flatten())
 
     return output
 
