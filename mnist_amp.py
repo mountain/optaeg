@@ -298,12 +298,15 @@ class AEGConv2d(nn.Module):
         self.groups = groups
         self.weight = nn.Parameter(th.Tensor(out_channels, in_channels, kernel_size, kernel_size))
         self.reset_parameters()
+        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
 
     def reset_parameters(self):
         nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
-        return conv2d_aeg_optimized(input, self.weight, self.stride, self.padding)
+        return th.sigmoid(conv2d_aeg_optimized(
+            input, self.weight, self.stride, self.padding
+        )) * self.conv2d(input)
 
 
 class MNISTModel(ltn.LightningModule):
@@ -377,14 +380,13 @@ class MNIST_AMP(MNISTModel):
     def __init__(self):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
-        self.conv0 = AEGConv2d(1, 3, kernel_size=3, padding=1, bias=False)
+        self.conv0 = AEGConv2d(1, 2, kernel_size=3, padding=1, bias=False)
         self.act0 = OptAEGV3()
-        self.conv1 = AEGConv2d(3, 3, kernel_size=3, padding=1, bias=False)
+        self.conv1 = AEGConv2d(2, 2, kernel_size=3, padding=1, bias=False)
         self.act1 = OptAEGV3()
-        self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1, bias=False)
+        self.conv2 = AEGConv2d(2, 2, kernel_size=3, padding=1, bias=False)
         self.act2 = OptAEGV3()
-        self.fc = FullConection(3 * 3 * 3, 10)
-        # self.fc = nn.Linear(2 * 3 * 3, 10)
+        self.fc = FullConection(2 * 3 * 3, 10)
 
     def forward(self, x):
         x = self.conv0(x)
