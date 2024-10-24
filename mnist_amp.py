@@ -58,25 +58,16 @@ def aeg_integrate(i, j, A_row, B_col):
     B_col: a column of matrix B
     return the result of the integration of A_row and B_col
     """
-    result0 = 0  # initialize the result
+    result = 0  # initialize the result
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
-            result0 = result0 + x
-            result0 = result0 * y
+            result = result + x
+            result = result * (1  + y)
         else:
-            result0 = result0 + y
-            result0 = result0 * x
+            result = result + y
+            result = result * (1 + x)
 
-    result1 = 0  # initialize the result
-    for k, (x, y) in enumerate(zip(A_row, B_col)):
-        if (1 + i + j + k) % 2 == 0:
-            result1 = result1 + x
-            result1 = result1 * y
-        else:
-            result1 = result1 + y
-            result1 = result1 * x
-
-    return result0 + result1
+    return result
 
 
 def aeg_product(A, B):
@@ -162,7 +153,7 @@ class FullConection(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.kaiming_normal_(self.weight)
+        nn.init.zeros_(self.weight)
 
     def forward(self, input):
         return batch_aeg_product(self.weight.repeat(input.size(0), 1, 1), input.view(-1, input.size(1), 1)).squeeze(2)
@@ -182,7 +173,7 @@ class AEGConv2d(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.kaiming_normal_(self.weight)
+        nn.init.zeros_(self.weight)
 
     def forward(self, input):
         return conv2d_aeg(input, self.weight, self.stride, self.padding)
