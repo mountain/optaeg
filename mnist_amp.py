@@ -67,8 +67,8 @@ def aeg_integrate(A_row, B_col):
             result = result + x
             result = result * y
         else:
-            result = result - y
-            result = result * x
+            result = result - x
+            result = result * y
 
     return result
 
