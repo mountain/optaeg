@@ -194,7 +194,7 @@ def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
 
     # 扩展 mask 至 (N, out_channels, C_in, K, L)
     # 只需要两次 unsqueeze，确保最终 mask 具有 5 个维度
-    mask = mask.unsqueeze(0).unsqueeze(1)  # (1, 1, 1, K, L)
+    mask = mask.unsqueeze(0)  # (1, 1, 1, K, L)
     mask = mask.expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
 
     # 扩展 input_unfolded 和 kernel_flat 以匹配形状
