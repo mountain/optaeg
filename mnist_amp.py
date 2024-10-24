@@ -4,7 +4,6 @@ import lightning as ltn
 import argparse
 import lightning.pytorch as pl
 
-from torch import Tensor
 from torch import nn
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
@@ -33,11 +32,9 @@ class OptAEGV3(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
-    @th.compile
     def flow(self, dx, dy, data):
         return data * (1 + dy) + dx
 
-    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
@@ -65,10 +62,10 @@ def aeg_integrate(i, j, A_row, B_col):
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
             result = result + x
-            result = result * y
+            result = result * th.tanh(y)
         else:
             result = result + y
-            result = result * x
+            result = result * th.tanh(x)
 
     return result
 
@@ -257,10 +254,10 @@ class MNIST_AMP(MNISTModel):
         self.act0 = OptAEGV3()
         self.conv1 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
         self.act1 = OptAEGV3()
-        self.conv2 = AEGConv2d(2, 2, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(2, 2, kernel_size=3, padding=1, bias=False)
         self.act2 = OptAEGV3()
-        # self.fc = FullConection(2 * 3 * 3, 10)
-        self.fc = nn.Linear(2 * 3 * 3, 10)
+        self.fc = FullConection(2 * 3 * 3, 10)
+        # self.fc = nn.Linear(2 * 3 * 3, 10)
 
     def forward(self, x):
         x = self.conv0(x)
