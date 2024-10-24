@@ -146,12 +146,12 @@ def conv2d_aeg(input, kernel, stride=1, padding=0):
 
 def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
     """
-    优化后的 conv2d_aeg 函数
-    input: 输入图像，形状为 (N, C, H, W)
+    优化后的 conv2d_aeg 函数，支持批次化操作。
+    input: 输入图像，形状为 (N, C_in, H, W)
     kernel: 卷积核，形状为 (out_channels, in_channels, KH, KW)
     stride: 卷积步幅
     padding: 填充的像素数量
-    返回卷积操作的结果，形状为 (N, out_channels, out_height, out_width)
+    返回: 卷积操作的结果，形状为 (N, out_channels, out_height, out_width)
     """
     N, C_in, H, W = input.shape
     out_channels, in_channels, KH, KW = kernel.shape
@@ -167,71 +167,59 @@ def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
     # 计算输出特征图的尺寸
     out_height = (H - KH + 2 * padding) // stride + 1
     out_width = (W - KW + 2 * padding) // stride + 1
+    L = out_height * out_width  # 总的空间位置数
 
-    # 使用 unfold 提取所有滑动窗口
-    input_unfolded = F.unfold(input_padded, kernel_size=(KH, KW), stride=stride)  # (N, C_in * KH * KW, L)
-    L = out_height * out_width
+    # 使用 unfold 提取所有滑动窗口，形状为 (N, C_in * KH * KW, L)
+    input_unfolded = F.unfold(input_padded, kernel_size=(KH, KW), stride=stride)  # (N, C_in*KH*KW, L)
 
-    # 重塑为 (N, C_in, KH * KW, L)
+    # 重塑为 (N, C_in, KH*KW, L)
     input_unfolded = input_unfolded.view(N, C_in, KH * KW, L)  # (N, C_in, K, L)
 
-    # 重塑 kernel 为 (out_channels, in_channels, K)
-    kernel_flat = kernel.view(out_channels, in_channels, KH * KW)  # (out_channels, in_channels, K)
+    # 重塑 kernel 为 (out_channels, C_in, K)
+    kernel_flat = kernel.view(out_channels, C_in, KH * KW)  # (out_channels, C_in, K)
 
-    # 初始化结果张量，形状为 (N, out_channels, in_channels, L)
-    result = th.zeros(N, out_channels, in_channels, L, device=input.device, dtype=input.dtype)
+    # 初始化 result 为零，形状为 (N, out_channels, C_in, L)
+    result = th.zeros(N, out_channels, C_in, L, device=input.device, dtype=input.dtype)
 
-    # 计算每个位置的 (i, j) 索引
+    # 计算 i 和 j 的索引
     l_indices = th.arange(L, device=input.device)
-    i_indices = (l_indices // out_width).view(1, 1, 1, L)  # (1,1,1,L)
-    j_indices = (l_indices % out_width).view(1, 1, 1, L)   # (1,1,1,L)
+    i_indices = (l_indices // out_width).view(1, 1, 1, L)  # (1, 1, 1, L)
+    j_indices = (l_indices % out_width).view(1, 1, 1, L)   # (1, 1, 1, L)
 
-    # 计算 k 索引
-    k_indices = th.arange(KH * KW, device=input.device).view(KH * KW, 1)  # (K,1)
+    # 计算 k 的索引
+    k_indices = th.arange(KH * KW, device=input.device).view(1, 1, KH * KW, 1)  # (1, 1, K, 1)
 
-    # 计算 mask，其中 mask[k, l] = ((i + j + k) % 2 == 0)
-    mask = ((i_indices + j_indices + k_indices) % 2 == 0).float()  # (1,1,K,L)
+    # 计算 mask，其中 mask[i,j,k,l] = ((i + j + k) % 2 == 0)
+    mask = ((i_indices + j_indices + k_indices) % 2 == 0)  # (1, 1, K, L)
 
-    # 扩展 mask 至 (N, out_channels, in_channels, K, L)
-    mask = mask.view(1, 1, 1, KH * KW, L).expand(N, out_channels, in_channels, KH * KW, L)
+    # 扩展 mask 至 (N, out_channels, C_in, K, L)
+    mask = mask.unsqueeze(0).unsqueeze(1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
 
-    # 提取 x 和 y
-    # x: (N, 1, in_channels, K, L)
-    x = input_unfolded.unsqueeze(1)  # (N,1,C_in,K,L)
+    # 扩展 input_unfolded 和 kernel_flat 以匹配形状
+    # input_unfolded: (N, C_in, K, L) -> (N, 1, C_in, K, L) -> (N, out_channels, C_in, K, L)
+    input_expanded = input_unfolded.unsqueeze(1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
 
-    # y: (1, out_channels, in_channels, K, 1)
-    y = kernel_flat.unsqueeze(0).unsqueeze(-1)  # (1, out_channels, in_channels, K,1)
+    # kernel_flat: (out_channels, C_in, K) -> (1, out_channels, C_in, K, 1) -> (N, out_channels, C_in, K, L)
+    kernel_expanded = kernel_flat.unsqueeze(0).unsqueeze(-1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
 
-    # 扩展 x 和 y 以匹配维度
-    # x: (N, out_channels, in_channels, K, L)
-    x = x.expand(N, out_channels, in_channels, KH * KW, L)
-
-    # y: (N, out_channels, in_channels, K, L)
-    y = y.expand(N, out_channels, in_channels, KH * KW, L)
-
-    # 计算 (result + x) * y 和 (result + y) * x
-    option1 = (result + x) * y  # (N, out_channels, in_channels, K, L)
-    option2 = (result + y) * x  # (N, out_channels, in_channels, K, L)
-
-    # 使用 mask 选择对应的选项
-    selected = option1 * mask + option2 * (1 - mask)  # (N, out_channels, in_channels, K, L)
-
-    # 更新 result
-    # 由于 aeg_integrate 是递归的，必须按 k 顺序迭代
-    # 我们将 k 维度展开，并逐步更新结果
+    # 在每个 k 步骤中更新 result
     for k in range(KH * KW):
-        # 选择当前 k 的操作
-        current_mask = mask[:, :, :, k, :]  # (N, out_channels, in_channels, 1, L)
+        # 当前 mask: (N, out_channels, C_in, L)
+        current_mask = mask[:, :, :, k, :]  # (N, out_channels, C_in, L)
 
-        # 选择 option1 或 option2
-        current_selected = selected[:, :, :, k, :]  # (N, out_channels, in_channels, L)
+        # 当前 x 和 y: (N, out_channels, C_in, L)
+        x = input_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
+        y = kernel_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
 
-        # 更新 result
-        result = th.where(current_mask.squeeze(3), (result + x[:, :, :, k, :]) * y[:, :, :, k, :],
-                                 (result + y[:, :, :, k, :]) * x[:, :, :, k, :])
+        # 计算 (result + x) * y 和 (result + y) * x
+        option1 = (result + x) * y  # (N, out_channels, C_in, L)
+        option2 = (result + y) * x  # (N, out_channels, C_in, L)
 
-    # 对 in_channels 求和，得到最终输出
-    output = result.sum(dim=2).view(N, out_channels, out_height, out_width)
+        # 使用 mask 选择对应的选项
+        result = th.where(current_mask, option1, option2)  # (N, out_channels, C_in, L)
+
+    # 对 in_channels 求和，得到最终输出形状为 (N, out_channels, L)
+    output = result.sum(dim=2).view(N, out_channels, out_height, out_width)  # (N, out_channels, H_out, W_out)
 
     return output
 
