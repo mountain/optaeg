@@ -55,15 +55,15 @@ class OptAEGV3(nn.Module):
         return data.view(*shape)
 
 
-def aeg_integrate(A_row, B_col):
+def aeg_integrate(i, j, A_row, B_col):
     """
     A_row: a row of matrix A
     B_col: a column of matrix B
     return the result of the integration of A_row and B_col
     """
     result = 0  # initialize the result
-    for i, (x, y) in enumerate(zip(A_row, B_col)):
-        if i % 2 == 0:
+    for k, (x, y) in enumerate(zip(A_row, B_col)):
+        if (i + j + k) % 2 == 0:
             result = result + x
             result = result * y
         else:
@@ -82,7 +82,7 @@ def aeg_product(A, B):
     result = th.zeros(A.size(0), B.size(1))
     for i in range(A.size(0)):
         for j in range(B.size(1)):
-            result[i, j] = aeg_integrate(A[i], B[:, j])
+            result[i, j] = aeg_integrate(i, j, A[i], B[:, j])
 
     return result
 
