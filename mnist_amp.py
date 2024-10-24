@@ -259,8 +259,8 @@ class MNIST_AMP(MNISTModel):
         self.act1 = OptAEGV3()
         self.conv2 = AEGConv2d(2, 2, kernel_size=3, padding=1, bias=False)
         self.act2 = OptAEGV3()
-        self.fc = FullConection(2 * 3 * 3, 10)
-        # self.fc = nn.Linear(2 * 3 * 3, 10)
+        # self.fc = FullConection(2 * 3 * 3, 10)
+        self.fc = nn.Linear(2 * 3 * 3, 10)
 
     def forward(self, x):
         x = self.conv0(x)
