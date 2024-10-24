@@ -58,16 +58,25 @@ def aeg_integrate(i, j, A_row, B_col):
     B_col: a column of matrix B
     return the result of the integration of A_row and B_col
     """
-    result = 0  # initialize the result
+    result0 = 0  # initialize the result
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
-            result = result - x
-            result = result * y
+            result0 = result0 + x
+            result0 = result0 * y
         else:
-            result = result - y
-            result = result * x
+            result0 = result0 + y
+            result0 = result0 * x
 
-    return result
+    result1 = 0  # initialize the result
+    for k, (x, y) in enumerate(zip(A_row, B_col)):
+        if (1 + i + j + k) % 2 == 0:
+            result1 = result1 + x
+            result1 = result1 * y
+        else:
+            result1 = result1 + y
+            result1 = result1 * x
+
+    return result0 + result1
 
 
 def aeg_product(A, B):
