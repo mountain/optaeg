@@ -62,10 +62,10 @@ def aeg_integrate(i, j, A_row, B_col):
     for k, (x, y) in enumerate(zip(A_row, B_col)):
         if (i + j + k) % 2 == 0:
             result = result + x
-            result = result * (1  + y)
+            result = result * y
         else:
             result = result + y
-            result = result * (1 + x)
+            result = result * x
 
     return result
 
