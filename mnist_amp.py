@@ -150,13 +150,16 @@ class FullConection(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.weight = nn.Parameter(th.Tensor(1, out_features, in_features))
+        self.proj = nn.linear(in_features, out_features)
         self.reset_parameters()
 
     def reset_parameters(self):
         nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
-        return batch_aeg_product(self.weight.repeat(input.size(0), 1, 1), input.view(-1, input.size(1), 1)).squeeze(2)
+        return batch_aeg_product(
+            self.weight.repeat(input.size(0), 1, 1), input.view(-1, input.size(1), 1)
+        ).squeeze(2) * self.proj(input)
 
 
 class AEGConv2d(nn.Module):
