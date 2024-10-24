@@ -144,6 +144,98 @@ def conv2d_aeg(input, kernel, stride=1, padding=0):
     return output
 
 
+def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
+    """
+    优化后的 conv2d_aeg 函数
+    input: 输入图像，形状为 (N, C, H, W)
+    kernel: 卷积核，形状为 (out_channels, in_channels, KH, KW)
+    stride: 卷积步幅
+    padding: 填充的像素数量
+    返回卷积操作的结果，形状为 (N, out_channels, out_height, out_width)
+    """
+    N, C_in, H, W = input.shape
+    out_channels, in_channels, KH, KW = kernel.shape
+
+    assert C_in == in_channels, "输入图像的通道数必须和卷积核通道数一致"
+
+    # 应用 padding
+    if padding > 0:
+        input_padded = F.pad(input, (padding, padding, padding, padding), mode='constant', value=0)
+    else:
+        input_padded = input
+
+    # 计算输出特征图的尺寸
+    out_height = (H - KH + 2 * padding) // stride + 1
+    out_width = (W - KW + 2 * padding) // stride + 1
+
+    # 使用 unfold 提取所有滑动窗口
+    input_unfolded = F.unfold(input_padded, kernel_size=(KH, KW), stride=stride)  # (N, C_in * KH * KW, L)
+    L = out_height * out_width
+
+    # 重塑为 (N, C_in, KH * KW, L)
+    input_unfolded = input_unfolded.view(N, C_in, KH * KW, L)  # (N, C_in, K, L)
+
+    # 重塑 kernel 为 (out_channels, in_channels, K)
+    kernel_flat = kernel.view(out_channels, in_channels, KH * KW)  # (out_channels, in_channels, K)
+
+    # 初始化结果张量，形状为 (N, out_channels, in_channels, L)
+    result = th.zeros(N, out_channels, in_channels, L, device=input.device, dtype=input.dtype)
+
+    # 计算每个位置的 (i, j) 索引
+    l_indices = th.arange(L, device=input.device)
+    i_indices = (l_indices // out_width).view(1, 1, 1, L)  # (1,1,1,L)
+    j_indices = (l_indices % out_width).view(1, 1, 1, L)   # (1,1,1,L)
+
+    # 计算 k 索引
+    k_indices = th.arange(KH * KW, device=input.device).view(KH * KW, 1)  # (K,1)
+
+    # 计算 mask，其中 mask[k, l] = ((i + j + k) % 2 == 0)
+    mask = ((i_indices + j_indices + k_indices) % 2 == 0).float()  # (1,1,K,L)
+
+    # 扩展 mask 至 (N, out_channels, in_channels, K, L)
+    mask = mask.view(1, 1, 1, KH * KW, L).expand(N, out_channels, in_channels, KH * KW, L)
+
+    # 提取 x 和 y
+    # x: (N, 1, in_channels, K, L)
+    x = input_unfolded.unsqueeze(1)  # (N,1,C_in,K,L)
+
+    # y: (1, out_channels, in_channels, K, 1)
+    y = kernel_flat.unsqueeze(0).unsqueeze(-1)  # (1, out_channels, in_channels, K,1)
+
+    # 扩展 x 和 y 以匹配维度
+    # x: (N, out_channels, in_channels, K, L)
+    x = x.expand(N, out_channels, in_channels, KH * KW, L)
+
+    # y: (N, out_channels, in_channels, K, L)
+    y = y.expand(N, out_channels, in_channels, KH * KW, L)
+
+    # 计算 (result + x) * y 和 (result + y) * x
+    option1 = (result + x) * y  # (N, out_channels, in_channels, K, L)
+    option2 = (result + y) * x  # (N, out_channels, in_channels, K, L)
+
+    # 使用 mask 选择对应的选项
+    selected = option1 * mask + option2 * (1 - mask)  # (N, out_channels, in_channels, K, L)
+
+    # 更新 result
+    # 由于 aeg_integrate 是递归的，必须按 k 顺序迭代
+    # 我们将 k 维度展开，并逐步更新结果
+    for k in range(KH * KW):
+        # 选择当前 k 的操作
+        current_mask = mask[:, :, :, k, :]  # (N, out_channels, in_channels, 1, L)
+
+        # 选择 option1 或 option2
+        current_selected = selected[:, :, :, k, :]  # (N, out_channels, in_channels, L)
+
+        # 更新 result
+        result = th.where(current_mask.squeeze(3), (result + x[:, :, :, k, :]) * y[:, :, :, k, :],
+                                 (result + y[:, :, :, k, :]) * x[:, :, :, k, :])
+
+    # 对 in_channels 求和，得到最终输出
+    output = result.sum(dim=2).view(N, out_channels, out_height, out_width)
+
+    return output
+
+
 def batch_aeg_product_optimized(A, B):
     """
     优化后的 batch_aeg_product 函数
@@ -221,7 +313,7 @@ class AEGConv2d(nn.Module):
         nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
-        return conv2d_aeg(input, self.weight, self.stride, self.padding)
+        return conv2d_aeg_optimized(input, self.weight, self.stride, self.padding)
 
 
 class MNISTModel(ltn.LightningModule):
@@ -299,7 +391,7 @@ class MNIST_AMP(MNISTModel):
         self.act0 = OptAEGV3()
         self.conv1 = nn.Conv2d(3, 3, kernel_size=3, padding=1, bias=False)
         self.act1 = OptAEGV3()
-        self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1, bias=False)
+        self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1, bias=False)
         self.act2 = OptAEGV3()
         self.fc = FullConection(3 * 3 * 3, 10)
         # self.fc = nn.Linear(2 * 3 * 3, 10)
