@@ -153,7 +153,7 @@ class FullConection(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.zeros_(self.weight)
+        nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
         return batch_aeg_product(self.weight.repeat(input.size(0), 1, 1), input.view(-1, input.size(1), 1)).squeeze(2)
@@ -173,7 +173,7 @@ class AEGConv2d(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.zeros_(self.weight)
+        nn.init.kaiming_normal_(self.weight)
 
     def forward(self, input):
         return conv2d_aeg(input, self.weight, self.stride, self.padding)
