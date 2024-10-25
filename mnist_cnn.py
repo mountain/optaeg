@@ -113,7 +113,7 @@ class SemiLinear(nn.Module):
         reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
         aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
         aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
-        return aeg_result * th.sigmoid(self.proj(input))
+        return th.tanh(aeg_result) * self.proj(input)
 
 
 class MNISTModel(ltn.LightningModule):
