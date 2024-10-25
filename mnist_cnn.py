@@ -187,9 +187,9 @@ class MNIST_CNN(MNISTModel):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 96, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(96, 192, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(96, 144, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
-        self.fc = nn.Linear(192 * 3 * 3, 10)
+        self.fc = nn.Linear(144 * 3 * 3, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
@@ -203,7 +203,7 @@ class MNIST_CNN(MNISTModel):
         x = self.pool(x)
         x = self.act04(x)
         x = self.pool(x)
-        x = x.view(-1, 192 * 3 * 3)
+        x = x.view(-1, 144 * 3 * 3)
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x
