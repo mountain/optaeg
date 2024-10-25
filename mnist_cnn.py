@@ -55,6 +55,67 @@ class OptAEGV3(nn.Module):
         return data.view(*shape)
 
 
+
+def batch_aeg_product_optimized(A, B):
+    """
+    优化后的 batch_aeg_product 函数
+    A: (batch_size, rows, features)
+    B: (batch_size, features, cols)
+    返回: (batch_size, rows, cols) 的结果
+    """
+    N, rows, features = A.shape
+    _, _, cols = B.shape
+
+    # 初始化结果张量
+    result = th.zeros(N, rows, cols, device=A.device, dtype=A.dtype)
+
+    # 创建行和列的索引
+    i_indices = th.arange(rows, device=A.device).view(rows, 1).expand(rows, cols)  # (rows, cols)
+    j_indices = th.arange(cols, device=A.device).view(1, cols).expand(rows, cols)  # (rows, cols)
+
+    for k in range(features):
+        # 计算 mask，其中 mask[i,j] = ((i + j + k) % 2 == 0)
+        mask = ((i_indices + j_indices + k) % 2 == 0).to(A.device)  # (rows, cols)
+
+        # 获取 A 和 B 中第 k 个特征
+        A_k = A[:, :, k].unsqueeze(2)  # (N, rows, 1)
+        B_k = B[:, k, :].unsqueeze(1)  # (N, 1, cols)
+
+        # 根据 mask 更新结果
+        # 使用广播机制使 mask 适应 (N, rows, cols)
+        mask_broadcast = mask.unsqueeze(0)  # (1, rows, cols)
+        mask_broadcast = mask_broadcast.expand(N, rows, cols)  # (N, rows, cols)
+
+        # 计算 (result + x) * y 和 (result + y) * x
+        option1 = (result + A_k) * B_k  # 当 mask 为 True 时使用
+        option2 = (result + B_k) * A_k  # 当 mask 为 False 时使用
+
+        # 使用 torch.where 根据 mask 选择对应的选项
+        result = th.where(mask_broadcast, option1, option2)
+
+    return result
+
+
+class SemiLinear(nn.Module):
+    def __init__(self, in_features, out_features):
+        super(SemiLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(th.Tensor(1, out_features, in_features))
+        self.proj = nn.Linear(in_features, out_features)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_normal_(self.weight)
+
+    def forward(self, input):
+        expanded_weight = self.weight.expand(input.size(0), -1, -1)  # (batch_size, out_features, in_features)
+        reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
+        aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
+        aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
+        return th.sigmoid(aeg_result) * self.proj(input)
+
+
 class MNISTModel(ltn.LightningModule):
     def __init__(self):
         super().__init__()
@@ -129,7 +190,7 @@ class MNIST_CNN(MNISTModel):
         self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.dropout = nn.Dropout(0.25)
-        self.fc = nn.Linear(3 * 3 * 3, 10)
+        self.fc = SemiLinear(3 * 3 * 3, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
