@@ -186,8 +186,8 @@ class MNISTModel(ltn.LightningModule):
 class MNIST_CNN(MNISTModel):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 80, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(80, 144, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(1, 72, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(72, 144, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.fc = nn.Linear(144 * 7 * 7, 10)
         self.act01 = OptAEGV3()
