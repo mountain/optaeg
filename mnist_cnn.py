@@ -113,7 +113,7 @@ class SemiLinear(nn.Module):
         reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
         aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
         aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
-        return th.softmax(aeg_result, dim=1) * self.proj(input)
+        return th.sigmoid(aeg_result) * self.proj(input)
 
 
 class MNISTModel(ltn.LightningModule):
@@ -186,15 +186,16 @@ class MNISTModel(ltn.LightningModule):
 class MNIST_CNN(MNISTModel):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 3, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(1, 4, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(4, 4, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.dropout = nn.Dropout(0.25)
-        self.fc = SemiLinear(3 * 3 * 3, 10)
+        self.fc = nn.Linear(4 * 3 * 3, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
         self.act04 = OptAEGV3()
+        self.act05 = OptAEGV3()
 
     def forward(self, x):
         x = self.act01(self.conv1(x))
@@ -204,6 +205,7 @@ class MNIST_CNN(MNISTModel):
         x = self.pool(x)
         x = self.act04(x)
         x = self.pool(x)
+        x = self.act05(x)
         x = x.view(-1, 3 * 3 * 3)
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
