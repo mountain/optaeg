@@ -206,7 +206,7 @@ class MNIST_CNN(MNISTModel):
         x = self.act04(x)
         x = self.pool(x)
         x = self.act05(x)
-        x = x.view(-1, 3 * 3 * 3)
+        x = x.view(-1, 4 * 3 * 3)
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x
