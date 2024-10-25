@@ -204,7 +204,7 @@ if __name__ == '__main__':
                          callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=30)])
 
     print('construct model...')
-    model = MNIST_OptAEGV3()
+    model = MNIST_CNN()
 
     print('training...')
     trainer.fit(model, train_loader, val_loader)
