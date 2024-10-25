@@ -129,7 +129,7 @@ class MNIST_CNN(MNISTModel):
         self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.dropout = nn.Dropout(0.25)
-        self.fc1 = nn.Linear(3 * 3 * 3, 10)
+        self.fc = nn.Linear(3 * 3 * 3, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
