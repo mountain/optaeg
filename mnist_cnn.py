@@ -129,13 +129,11 @@ class MNIST_CNN(MNISTModel):
         self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.dropout = nn.Dropout(0.25)
-        self.fc1 = nn.Linear(3 * 3 * 3, 2 * 3 * 3)
-        self.fc2 = nn.Linear(2 * 3 * 3, 10)
+        self.fc1 = nn.Linear(3 * 3 * 3, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
         self.act04 = OptAEGV3()
-        self.act05 = OptAEGV3()
 
     def forward(self, x):
         x = self.act01(self.conv1(x))
@@ -146,8 +144,7 @@ class MNIST_CNN(MNISTModel):
         x = self.act04(x)
         x = self.pool(x)
         x = x.view(-1, 3 * 3 * 3)
-        x = self.act05(self.fc1(x))
-        x = self.fc2(x)
+        x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x
 
