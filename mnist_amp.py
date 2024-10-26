@@ -274,7 +274,6 @@ class SemiLinear(nn.Module):
         self.out_features = out_features
         self.weight = nn.Parameter(th.Tensor(1, out_features, in_features))
         self.proj = nn.Linear(in_features, out_features)
-        self.bias = nn.Linear(in_features, out_features)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -285,7 +284,7 @@ class SemiLinear(nn.Module):
         reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
         aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
         aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
-        return th.sigmoid(aeg_result) * self.proj(input) + self.bias(input)
+        return th.sigmoid(aeg_result) * self.proj(input)
 
 
 class AEGConv2d(nn.Module):
@@ -381,8 +380,8 @@ class MNISTModel(ltn.LightningModule):
 class MNIST_AMP(MNISTModel):
     def __init__(self):
         super().__init__()
-        self.conv1 = AEGConv2d(1, 3, kernel_size=3, padding=1)
-        self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1)
+        self.conv1 = AEGConv2d(1, 4, kernel_size=3, padding=1)
+        self.conv2 = AEGConv2d(4, 4, kernel_size=3, padding=1)
         self.pool2 = nn.MaxPool2d(2)
         self.pool3 = nn.MaxPool2d(3)
         self.fc = SemiLinear(3 * 4 * 4, 10)
