@@ -288,10 +288,10 @@ class MNISTModel(ltn.LightningModule):
 class MNIST_CNN(MNISTModel):
     def __init__(self):
         super().__init__()
-        self.conv1 = AEGConv2d(1, 8, kernel_size=3, padding=1)
-        self.conv2 = AEGConv2d(8, 8, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(1, 9, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(9, 9, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
-        self.fc = SemiLinear(8 * 7 * 7, 10)
+        self.fc = SemiLinear(9 * 7 * 7, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
@@ -303,7 +303,7 @@ class MNIST_CNN(MNISTModel):
         x = self.pool(x)
         x = self.act03(x)
         x = self.pool(x)
-        x = x.view(-1, 8 * 7 * 7)
+        x = x.view(-1, 9 * 7 * 7)
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x

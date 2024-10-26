@@ -2,8 +2,8 @@
 # We can reach 98.2% accuracy on MNIST with only 702 parameters.
 #
 #   variant      accuracy      paramters      comments
-#      v4         98.2%           735         more stable
-#      v3         98.2%           702
+#      v4         98.2%           735
+#      v3         98.2%           702         best performance
 #      v2         97.8%           693
 #      v1         97.3%           687
 
@@ -265,11 +265,11 @@ class MNIST_OptAEGV3(MNISTModel):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
         self.conv0 = nn.Conv2d(1, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon0 = OptAEGV4()
+        self.lnon0 = OptAEGV3()
         self.conv1 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon1 = OptAEGV4()
+        self.lnon1 = OptAEGV3()
         self.conv2 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon2 = OptAEGV4()
+        self.lnon2 = OptAEGV3()
         self.fc = nn.Linear(4 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
