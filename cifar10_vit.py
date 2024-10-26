@@ -30,7 +30,7 @@ if th.cuda.is_available():
     accelerator = 'gpu'
     th.set_float32_matmul_precision('medium')
 elif th.backends.mps.is_available():
-    accelerator = 'cpu'
+    accelerator = 'mps'
 else:
     accelerator = 'cpu'
 
