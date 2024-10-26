@@ -7,6 +7,8 @@ import lightning.pytorch as pl
 from torch import nn
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
+from mnist_cnn import SemiLinear
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--n_epochs", type=int, default=1000, help="number of epochs of training")
 parser.add_argument("-b", "--batch", type=int, default=256, help="batch size of training")
@@ -378,30 +380,27 @@ class MNISTModel(ltn.LightningModule):
 
 class MNIST_AMP(MNISTModel):
     def __init__(self):
-        super().__init__()
-        self.pool = nn.MaxPool2d(2)
-        self.conv0 = AEGConv2d(1, 6, kernel_size=3, padding=1, bias=False)
-        self.act0 = OptAEGV3()
-        self.conv1 = AEGConv2d(6, 6, kernel_size=3, padding=1, bias=False)
-        self.act1 = OptAEGV3()
-        self.conv2 = AEGConv2d(6, 6, kernel_size=3, padding=1, bias=False)
-        self.act2 = OptAEGV3()
-        self.fc = FullConection(6 * 3 * 3, 10)
+        def __init__(self):
+            super().__init__()
+            self.conv1 = AEGConv2d(1, 3, kernel_size=3, padding=1)
+            self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1)
+            self.pool = nn.MaxPool2d(2)
+            self.fc = SemiLinear(6 * 7 * 7, 10)
+            self.act01 = OptAEGV3()
+            self.act02 = OptAEGV3()
+            self.act03 = OptAEGV3()
+            self.act04 = OptAEGV3()
 
-    def forward(self, x):
-        x = self.conv0(x)
-        x = self.act0(x)
-        x = self.pool(x)
-        x = self.conv1(x)
-        x = self.act1(x)
-        x = self.pool(x)
-        x = self.conv2(x)
-        x = self.act2(x)
-        x = self.pool(x)
-        x = th.flatten(x, 1)
-        x = self.fc(x)
-        x = F.log_softmax(x, dim=1)
-        return x
+        def forward(self, x):
+            x = self.act01(self.conv1(x))
+            x = self.act02(self.conv2(x))
+            x = self.pool(x)
+            x = self.act03(x)
+            x = self.pool(x)
+            x = x.view(-1, 3 * 7 * 7)
+            x = self.fc(x)
+            x = F.log_softmax(x, dim=1)
+            return x
 
 
 def test_best():
