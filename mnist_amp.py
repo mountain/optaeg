@@ -7,7 +7,6 @@ import lightning.pytorch as pl
 from torch import nn
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
-from mnist_cnn import SemiLinear
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--n_epochs", type=int, default=1000, help="number of epochs of training")
@@ -268,13 +267,14 @@ def batch_aeg_product_optimized(A, B):
     return result
 
 
-class FullConection(nn.Module):
+class SemiLinear(nn.Module):
     def __init__(self, in_features, out_features):
-        super(FullConection, self).__init__()
+        super(SemiLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.weight = nn.Parameter(th.Tensor(1, out_features, in_features))
         self.proj = nn.Linear(in_features, out_features)
+        self.bias = nn.Linear(in_features, out_features)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -285,7 +285,7 @@ class FullConection(nn.Module):
         reshaped_input = input.view(input.size(0), input.size(1), 1)  # (batch_size, in_features, 1)
         aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
         aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
-        return th.sigmoid(aeg_result) * self.proj(input)
+        return th.sigmoid(aeg_result) * self.proj(input) + self.bias(input)
 
 
 class AEGConv2d(nn.Module):
