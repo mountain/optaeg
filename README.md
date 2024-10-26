@@ -1,4 +1,4 @@
-# optaeg: a test fields to combine neural networks and Arithmetic Expression Geometry
+# optaeg: combine neural networks and AEG theory
 
 We tried different ways to combine neural networks and Arithmetic Expression Geometry and test them on different datasets.
 Several models showed very good results with extremely less parameters:
