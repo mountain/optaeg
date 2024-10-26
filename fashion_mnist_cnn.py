@@ -23,39 +23,6 @@ else:
     accelerator = 'cpu'
 
 
-# This variant can reach 98.2% accuracy on MNIST with only 702 parameters.
-# and the performance is better and quite stable. It is derived from transformer.
-class OptAEGV3(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.vx = nn.Parameter(th.zeros(1, 1, 1))
-        self.vy = nn.Parameter(th.ones(1, 1, 1))
-        self.wx = nn.Parameter(th.zeros(1, 1, 1))
-        self.wy = nn.Parameter(th.ones(1, 1, 1))
-        self.afactor = nn.Parameter(th.zeros(1, 1))
-        self.mfactor = nn.Parameter(th.ones(1, 1))
-
-    def flow(self, dx, dy, data):
-        return data * (1 + dy) + dx
-
-    def forward(self, data):
-        shape = data.size()
-        data = data.flatten(1)
-        data = data - data.mean()
-        data = data / data.std()
-
-        b = shape[0]
-        v = self.flow(self.vx, self.vy, data.view(b, -1, 1))
-        w = self.flow(self.wx, self.wy, data.view(b, -1, 1))
-
-        dx = self.afactor * th.sum(v * th.sigmoid(w), dim=-1)
-        dy = self.mfactor * th.tanh(data)
-        data = self.flow(dx, dy, data)
-
-        return data.view(*shape)
-
-
-
 def batch_aeg_product_optimized(A, B):
     """
     优化后的 batch_aeg_product 函数
@@ -96,6 +63,118 @@ def batch_aeg_product_optimized(A, B):
     return result
 
 
+def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
+    """
+    优化后的 conv2d_aeg 函数，支持批次化操作。
+    input: 输入图像，形状为 (N, C_in, H, W)
+    kernel: 卷积核，形状为 (out_channels, in_channels, KH, KW)
+    stride: 卷积步幅
+    padding: 填充的像素数量
+    返回: 卷积操作的结果，形状为 (N, out_channels, out_height, out_width)
+    """
+    N, C_in, H, W = input.shape
+    out_channels, in_channels, KH, KW = kernel.shape
+
+    assert C_in == in_channels, "输入图像的通道数必须和卷积核通道数一致"
+
+    # 应用 padding
+    if padding > 0:
+        input_padded = F.pad(input, (padding, padding, padding, padding), mode='constant', value=0)
+    else:
+        input_padded = input
+
+    # 计算输出特征图的尺寸
+    out_height = (H - KH + 2 * padding) // stride + 1
+    out_width = (W - KW + 2 * padding) // stride + 1
+    L = out_height * out_width  # 总的空间位置数
+
+    # 使用 unfold 提取所有滑动窗口，形状为 (N, C_in * KH * KW, L)
+    input_unfolded = F.unfold(input_padded, kernel_size=(KH, KW), stride=stride)  # (N, C_in*KH*KW, L)
+
+    # 重塑为 (N, C_in, KH*KW, L)
+    input_unfolded = input_unfolded.view(N, C_in, KH * KW, L)  # (N, C_in, K, L)
+
+    # 重塑 kernel 为 (out_channels, C_in, K)
+    kernel_flat = kernel.view(out_channels, C_in, KH * KW)  # (out_channels, C_in, K)
+
+    # 初始化 result 为零，形状为 (N, out_channels, C_in, L)
+    result = th.zeros(N, out_channels, C_in, L, device=input.device, dtype=input.dtype)
+
+    # 计算 i 和 j 的索引
+    l_indices = th.arange(L, device=input.device)
+    i_indices = (l_indices // out_width).view(1, 1, 1, L)  # (1, 1, 1, L)
+    j_indices = (l_indices % out_width).view(1, 1, 1, L)   # (1, 1, 1, L)
+
+    # 计算 k 的索引
+    k_indices = th.arange(KH * KW, device=input.device).view(1, 1, KH * KW, 1)  # (1, 1, K, 1)
+
+    # 计算 mask，其中 mask[i,j,k,l] = ((i + j + k) % 2 == 0)
+    mask = ((i_indices + j_indices + k_indices) % 2 == 0)  # (1, 1, K, L)
+
+    # 扩展 mask 至 (N, out_channels, C_in, K, L)
+    # 只需要两次 unsqueeze，确保最终 mask 具有 5 个维度
+    mask = mask.unsqueeze(0)  # (1, 1, 1, K, L)
+    mask = mask.expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
+
+    # 扩展 input_unfolded 和 kernel_flat 以匹配形状
+    # input_unfolded: (N, C_in, K, L) -> (N, 1, C_in, K, L) -> (N, out_channels, C_in, K, L)
+    input_expanded = input_unfolded.unsqueeze(1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
+
+    # kernel_flat: (out_channels, C_in, K) -> (1, out_channels, C_in, K, 1) -> (N, out_channels, C_in, K, L)
+    kernel_expanded = kernel_flat.unsqueeze(0).unsqueeze(-1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
+
+    # 在每个 k 步骤中更新 result
+    for k in range(KH * KW):
+        # 当前 mask: (N, out_channels, C_in, L)
+        current_mask = mask[:, :, :, k, :]  # (N, out_channels, C_in, L)
+
+        # 当前 x 和 y: (N, out_channels, C_in, L)
+        x = input_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
+        y = kernel_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
+
+        # 计算 (result + x) * y 和 (result + y) * x
+        option1 = (result + x) * y  # (N, out_channels, C_in, L)
+        option2 = (result + y) * x  # (N, out_channels, C_in, L)
+
+        # 使用 mask 选择对应的选项
+        result = th.where(current_mask, option1, option2)  # (N, out_channels, C_in, L)
+
+    # 对 in_channels 求和，得到最终输出形状为 (N, out_channels, L)
+    output = result.sum(dim=2).view(N, out_channels, out_height, out_width)  # (N, out_channels, H_out, W_out)
+
+    return output
+
+
+class OptAEGV3(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vx = nn.Parameter(th.zeros(1, 1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
+
+    def flow(self, dx, dy, data):
+        return data * (1 + dy) + dx
+
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(1)
+        data = data - data.mean()
+        data = data / data.std()
+
+        b = shape[0]
+        v = self.flow(self.vx, self.vy, data.view(b, -1, 1))
+        w = self.flow(self.wx, self.wy, data.view(b, -1, 1))
+
+        dx = self.afactor * th.sum(v * th.sigmoid(w), dim=-1)
+        dy = self.mfactor * th.tanh(data)
+        data = self.flow(dx, dy, data)
+
+        return data.view(*shape)
+
+
 class SemiLinear(nn.Module):
     def __init__(self, in_features, out_features):
         super(SemiLinear, self).__init__()
@@ -114,6 +193,29 @@ class SemiLinear(nn.Module):
         aeg_result = batch_aeg_product_optimized(expanded_weight, reshaped_input)  # (batch_size, out_features, 1)
         aeg_result = aeg_result.squeeze(2)  # (batch_size, out_features)
         return th.sigmoid(aeg_result) * self.proj(input)
+
+
+class AEGConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
+        super(AEGConv2d, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+        self.groups = groups
+        self.weight = nn.Parameter(th.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        self.reset_parameters()
+        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+
+    def reset_parameters(self):
+        nn.init.kaiming_normal_(self.weight)
+
+    def forward(self, input):
+        return th.sigmoid(conv2d_aeg_optimized(
+            input, self.weight, self.stride, self.padding
+        )) * self.conv2d(input)
 
 
 class MNISTModel(ltn.LightningModule):
@@ -186,8 +288,8 @@ class MNISTModel(ltn.LightningModule):
 class MNIST_CNN(MNISTModel):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(8, 8, kernel_size=3, padding=1)
+        self.conv1 = AEGConv2d(1, 8, kernel_size=3, padding=1)
+        self.conv2 = AEGConv2d(8, 8, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2)
         self.fc = SemiLinear(8 * 7 * 7, 10)
         self.act01 = OptAEGV3()
