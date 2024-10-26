@@ -380,27 +380,26 @@ class MNISTModel(ltn.LightningModule):
 
 class MNIST_AMP(MNISTModel):
     def __init__(self):
-        def __init__(self):
-            super().__init__()
-            self.conv1 = AEGConv2d(1, 3, kernel_size=3, padding=1)
-            self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1)
-            self.pool = nn.MaxPool2d(3)
-            self.fc = SemiLinear(3 * 3 * 3, 10)
-            self.act01 = OptAEGV3()
-            self.act02 = OptAEGV3()
-            self.act03 = OptAEGV3()
-            self.act04 = OptAEGV3()
+        super().__init__()
+        self.conv1 = AEGConv2d(1, 3, kernel_size=3, padding=1)
+        self.conv2 = AEGConv2d(3, 3, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(3)
+        self.fc = SemiLinear(3 * 3 * 3, 10)
+        self.act01 = OptAEGV3()
+        self.act02 = OptAEGV3()
+        self.act03 = OptAEGV3()
+        self.act04 = OptAEGV3()
 
-        def forward(self, x):
-            x = self.act01(self.conv1(x))
-            x = self.act02(self.conv2(x))
-            x = self.pool(x)
-            x = self.act03(x)
-            x = self.pool(x)
-            x = x.view(-1, 3 * 3 * 3)
-            x = self.fc(x)
-            x = F.log_softmax(x, dim=1)
-            return x
+    def forward(self, x):
+        x = self.act01(self.conv1(x))
+        x = self.act02(self.conv2(x))
+        x = self.pool(x)
+        x = self.act03(x)
+        x = self.pool(x)
+        x = x.view(-1, 3 * 3 * 3)
+        x = self.fc(x)
+        x = F.log_softmax(x, dim=1)
+        return x
 
 
 def test_best():
