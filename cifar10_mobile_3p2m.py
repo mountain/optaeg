@@ -1,39 +1,23 @@
-# The ViT code is originally by Kentaro Yoshioka
-# * https://github.com/kentaroy47/vision-transformers-cifar10/
-# * https://github.com/kentaroy47/vision-transformers-cifar10/blob/main/models/vit_small.py
-# modified by Mingli Yuan to adapt the AEG theory
-
-# with same configuration and the only modification is to change mlp to OptAEG,
-# we can reduce model from 9M to 6 M parameters. And also it converged very fast
-# with only merely 50 epoches comparing the originally ~100 epoches.
-# The accuracy are both around 80%.
+# with width multiplier 1.0
+# * Original MobileNet:                                88.3% (3.2m parameters)
+# * MobileNet + OptAEGV3 + SemiLinear:                 87.3% (3.2m parameters)
 
 import torch as th
 import torch.nn.functional as F
 import lightning as ltn
 import argparse
 import lightning.pytorch as pl
+import torch_optimizer as optim
 
-from torch import Tensor
 from torch import nn
-from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--n_epochs", type=int, default=1000, help="number of epochs of training")
 parser.add_argument("-b", "--batch", type=int, default=256, help="batch size of training")
 parser.add_argument("-m", "--model", type=str, default='mnist0', help="model to execute")
 opt = parser.parse_args()
-
-if th.cuda.is_available():
-    accelerator = 'gpu'
-    th.set_float32_matmul_precision('medium')
-elif th.backends.mps.is_available():
-    accelerator = 'mps'
-else:
-    accelerator = 'cpu'
-
 
 if th.cuda.is_available():
     accelerator = 'gpu'
@@ -82,88 +66,6 @@ def batch_aeg_product_optimized(A, B):
         result = th.where(mask_broadcast, option1, option2)
 
     return result
-
-
-def conv2d_aeg_optimized(input, kernel, stride=1, padding=0):
-    """
-    优化后的 conv2d_aeg 函数，支持批次化操作。
-    input: 输入图像，形状为 (N, C_in, H, W)
-    kernel: 卷积核，形状为 (out_channels, in_channels, KH, KW)
-    stride: 卷积步幅
-    padding: 填充的像素数量
-    返回: 卷积操作的结果，形状为 (N, out_channels, out_height, out_width)
-    """
-    N, C_in, H, W = input.shape
-    out_channels, in_channels, KH, KW = kernel.shape
-
-    assert C_in == in_channels, "输入图像的通道数必须和卷积核通道数一致"
-
-    # 应用 padding
-    if padding > 0:
-        input_padded = F.pad(input, (padding, padding, padding, padding), mode='constant', value=0)
-    else:
-        input_padded = input
-
-    # 计算输出特征图的尺寸
-    out_height = (H - KH + 2 * padding) // stride + 1
-    out_width = (W - KW + 2 * padding) // stride + 1
-    L = out_height * out_width  # 总的空间位置数
-
-    # 使用 unfold 提取所有滑动窗口，形状为 (N, C_in * KH * KW, L)
-    input_unfolded = F.unfold(input_padded, kernel_size=(KH, KW), stride=stride)  # (N, C_in*KH*KW, L)
-
-    # 重塑为 (N, C_in, KH*KW, L)
-    input_unfolded = input_unfolded.view(N, C_in, KH * KW, L)  # (N, C_in, K, L)
-
-    # 重塑 kernel 为 (out_channels, C_in, K)
-    kernel_flat = kernel.view(out_channels, C_in, KH * KW)  # (out_channels, C_in, K)
-
-    # 初始化 result 为零，形状为 (N, out_channels, C_in, L)
-    result = th.zeros(N, out_channels, C_in, L, device=input.device, dtype=input.dtype)
-
-    # 计算 i 和 j 的索引
-    l_indices = th.arange(L, device=input.device)
-    i_indices = (l_indices // out_width).view(1, 1, 1, L)  # (1, 1, 1, L)
-    j_indices = (l_indices % out_width).view(1, 1, 1, L)   # (1, 1, 1, L)
-
-    # 计算 k 的索引
-    k_indices = th.arange(KH * KW, device=input.device).view(1, 1, KH * KW, 1)  # (1, 1, K, 1)
-
-    # 计算 mask，其中 mask[i,j,k,l] = ((i + j + k) % 2 == 0)
-    mask = ((i_indices + j_indices + k_indices) % 2 == 0)  # (1, 1, K, L)
-
-    # 扩展 mask 至 (N, out_channels, C_in, K, L)
-    # 只需要两次 unsqueeze，确保最终 mask 具有 5 个维度
-    mask = mask.unsqueeze(0)  # (1, 1, 1, K, L)
-    mask = mask.expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
-
-    # 扩展 input_unfolded 和 kernel_flat 以匹配形状
-    # input_unfolded: (N, C_in, K, L) -> (N, 1, C_in, K, L) -> (N, out_channels, C_in, K, L)
-    input_expanded = input_unfolded.unsqueeze(1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
-
-    # kernel_flat: (out_channels, C_in, K) -> (1, out_channels, C_in, K, 1) -> (N, out_channels, C_in, K, L)
-    kernel_expanded = kernel_flat.unsqueeze(0).unsqueeze(-1).expand(N, out_channels, C_in, KH * KW, L)  # (N, out_channels, C_in, K, L)
-
-    # 在每个 k 步骤中更新 result
-    for k in range(KH * KW):
-        # 当前 mask: (N, out_channels, C_in, L)
-        current_mask = mask[:, :, :, k, :]  # (N, out_channels, C_in, L)
-
-        # 当前 x 和 y: (N, out_channels, C_in, L)
-        x = input_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
-        y = kernel_expanded[:, :, :, k, :]  # (N, out_channels, C_in, L)
-
-        # 计算 (result + x) * y 和 (result + y) * x
-        option1 = (result + x) * y  # (N, out_channels, C_in, L)
-        option2 = (result + y) * x  # (N, out_channels, C_in, L)
-
-        # 使用 mask 选择对应的选项
-        result = th.where(current_mask, option1, option2)  # (N, out_channels, C_in, L)
-
-    # 对 in_channels 求和，得到最终输出形状为 (N, out_channels, L)
-    output = result.sum(dim=2).view(N, out_channels, out_height, out_width)  # (N, out_channels, H_out, W_out)
-
-    return output
 
 
 class OptAEGV3(nn.Module):
@@ -216,29 +118,6 @@ class SemiLinear(nn.Module):
         return th.sigmoid(aeg_result) * self.proj(input)
 
 
-class AEGConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
-        super(AEGConv2d, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
-        self.groups = groups
-        self.weight = nn.Parameter(th.Tensor(out_channels, in_channels, kernel_size, kernel_size))
-        self.reset_parameters()
-        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
-
-    def reset_parameters(self):
-        nn.init.kaiming_normal_(self.weight)
-
-    def forward(self, input):
-        return th.sigmoid(conv2d_aeg_optimized(
-            input, self.weight, self.stride, self.padding
-        )) * self.conv2d(input)
-
-
 class CIFAR10Model(ltn.LightningModule):
     def __init__(self):
         super().__init__()
@@ -248,9 +127,11 @@ class CIFAR10Model(ltn.LightningModule):
         self.labeled_correct = 0
 
     def configure_optimizers(self):
-        optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
-        scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, 53)
-        return [optimizer], [scheduler]
+        base_optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = optim.Lookahead(base_optimizer, k=5, alpha=0.5)
+        optimizer._optimizer_state_dict_pre_hooks = {}
+        optimizer._optimizer_state_dict_post_hooks = {}
+        return optimizer
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
@@ -310,8 +191,12 @@ class CIFAR10Model(ltn.LightningModule):
 
 
 class DepthwiseSeparableConv(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
+    def __init__(self, in_channels, out_channels, stride=1, width_multiplier=1.0):
         super(DepthwiseSeparableConv, self).__init__()
+        # Apply width multiplier to adjust the number of channels
+        in_channels = int(in_channels * width_multiplier)
+        out_channels = int(out_channels * width_multiplier)
+
         # Depthwise convolution
         self.depthwise = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride, padding=1,
                                    groups=in_channels, bias=False)
@@ -321,46 +206,52 @@ class DepthwiseSeparableConv(nn.Module):
         self.pointwise = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
 
+        # AEG activation functions
+        self.act1 = nn.ReLU()
+        self.act2 = nn.ReLU()
+
     def forward(self, x):
-        x = F.relu(self.bn1(self.depthwise(x)))
-        x = F.relu(self.bn2(self.pointwise(x)))
+        x = self.act1(self.bn1(self.depthwise(x)))
+        x = self.act2(self.bn2(self.pointwise(x)))
         return x
 
 
 class MobileNet(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, width_multiplier=1.0):
         super(MobileNet, self).__init__()
 
         # Initial standard conv layer
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(3, int(32 * width_multiplier), kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(int(32 * width_multiplier))
 
         # Depthwise separable conv blocks
-        self.conv2 = DepthwiseSeparableConv(32, 64, stride=1)  # No downsampling
-        self.conv3 = DepthwiseSeparableConv(64, 128, stride=2)  # Downsample
-        self.conv4 = DepthwiseSeparableConv(128, 128, stride=1)  # No downsampling
-        self.conv5 = DepthwiseSeparableConv(128, 256, stride=2)  # Downsample
-        self.conv6 = DepthwiseSeparableConv(256, 256, stride=1)  # No downsampling
-        self.conv7 = DepthwiseSeparableConv(256, 512, stride=2)  # Downsample
+        self.conv2 = DepthwiseSeparableConv(32, 64, stride=1, width_multiplier=width_multiplier)  # No downsampling
+        self.conv3 = DepthwiseSeparableConv(64, 128, stride=2, width_multiplier=width_multiplier)  # Downsample
+        self.conv4 = DepthwiseSeparableConv(128, 128, stride=1, width_multiplier=width_multiplier)  # No downsampling
+        self.conv5 = DepthwiseSeparableConv(128, 256, stride=2, width_multiplier=width_multiplier)  # Downsample
+        self.conv6 = DepthwiseSeparableConv(256, 256, stride=1, width_multiplier=width_multiplier)  # No downsampling
+        self.conv7 = DepthwiseSeparableConv(256, 512, stride=2, width_multiplier=width_multiplier)  # Downsample
 
         # Multiple depthwise separable conv layers with the same size
         self.conv_blocks = nn.Sequential(
-            DepthwiseSeparableConv(512, 512, stride=1),
-            DepthwiseSeparableConv(512, 512, stride=1),
-            DepthwiseSeparableConv(512, 512, stride=1),
-            DepthwiseSeparableConv(512, 512, stride=1),
-            DepthwiseSeparableConv(512, 512, stride=1)
+            DepthwiseSeparableConv(512, 512, stride=1, width_multiplier=width_multiplier),
+            DepthwiseSeparableConv(512, 512, stride=1, width_multiplier=width_multiplier),
+            DepthwiseSeparableConv(512, 512, stride=1, width_multiplier=width_multiplier),
+            DepthwiseSeparableConv(512, 512, stride=1, width_multiplier=width_multiplier),
+            DepthwiseSeparableConv(512, 512, stride=1, width_multiplier=width_multiplier)
         )
 
-        self.conv8 = DepthwiseSeparableConv(512, 1024, stride=2)  # Downsample
-        self.conv9 = DepthwiseSeparableConv(1024, 1024, stride=1)  # No downsampling
+        self.conv8 = DepthwiseSeparableConv(512, 1024, stride=2, width_multiplier=width_multiplier)  # Downsample
+        self.conv9 = DepthwiseSeparableConv(1024, 1024, stride=1, width_multiplier=width_multiplier)  # No downsampling
 
         # Global Average Pooling + Fully Connected Layer
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(1024, num_classes)
+        self.fc = nn.Linear(int(1024 * width_multiplier), num_classes)
+
+        self.act = nn.ReLU()
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)))
+        x = self.act(self.bn1(self.conv1(x)))
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
@@ -379,7 +270,7 @@ class MobileNet(nn.Module):
 class CIFAR10_Mobile(CIFAR10Model):
     def __init__(self):
         super().__init__()
-        self.model = MobileNet(num_classes=10)
+        self.model = MobileNet(num_classes=10, width_multiplier=0.17)
 
     def forward(self, x):
         x = self.model(x)
@@ -425,25 +316,21 @@ if __name__ == '__main__':
 
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
-        transforms.Resize(32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
-
     transform_test = transforms.Compose([
-        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    mnist_train = CIFAR10('datasets', train=True, download=True, transform=transform_train)
+    cifar10_train = CIFAR10('datasets', train=True, download=True, transform=transform_train)
+    cifar1_test = CIFAR10('datasets', train=False, download=True, transform=transform_test)
 
-    mnist_test = CIFAR10('datasets', train=False, download=True, transform=transform_test)
-
-    train_loader = DataLoader(mnist_train, shuffle=True, batch_size=opt.batch, num_workers=8)
-    val_loader = DataLoader(mnist_test, batch_size=opt.batch, num_workers=8)
-    test_loader = DataLoader(mnist_test, batch_size=opt.batch, num_workers=8)
+    train_loader = DataLoader(cifar10_train, shuffle=True, batch_size=opt.batch, num_workers=8)
+    val_loader = DataLoader(cifar1_test, batch_size=opt.batch, num_workers=8)
+    test_loader = DataLoader(cifar1_test, batch_size=opt.batch, num_workers=8)
 
     # training
     print('construct trainer...')

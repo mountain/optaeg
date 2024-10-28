@@ -1,11 +1,19 @@
-# We gave three varaints of OptAEG, V3 is the best.
-# We can reach 98.2% accuracy on MNIST with only 702 parameters.
+# We give four variants of learnable activitions based on AEG theory
+# V3 is the best which can reach 98.2% accuracy on MNIST with only 702 parameters.
 #
 #   variant      accuracy      paramters      comments
 #      v4         98.2%           735
 #      v3         98.2%           702         best performance
 #      v2         97.8%           693
 #      v1         97.3%           687
+#
+# AEG stands for arithmetical expression geometry, which is a new theory studying the geometry of arithmetical expressions.
+# It opens a new optimization space for neural networks, and can be used to construct a new kind of neural network.
+# For the details of AEG theory, please refer to the draft paper:
+# * https://github.com/mountain/aeg-paper : Can arithmetical expressions form a geometry space?
+# * https://github.com/mountain/aeg-invitation : an invitation to AEG theory
+# * https://github.com/mountain/aeg-invitation/blob/main/slides2/aeg.pdf : introductory slides
+
 
 import torch as th
 import torch.nn.functional as F

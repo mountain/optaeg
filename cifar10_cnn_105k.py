@@ -1,23 +1,14 @@
-# The ViT code is originally by Kentaro Yoshioka
-# * https://github.com/kentaroy47/vision-transformers-cifar10/
-# * https://github.com/kentaroy47/vision-transformers-cifar10/blob/main/models/vit_small.py
-# modified by Mingli Yuan to adapt the AEG theory
-
-# with same configuration and the only modification is to change mlp to OptAEG,
-# we can reduce model from 9M to 6 M parameters. And also it converged very fast
-# with only merely 50 epoches comparing the originally ~100 epoches.
-# The accuracy are both around 80%.
+# with 105k parameters
+# * accuracy: 81.5%
 
 import torch as th
 import torch.nn.functional as F
 import lightning as ltn
 import argparse
 import lightning.pytorch as pl
+import torch_optimizer as optim
 
-from torch import Tensor
 from torch import nn
-from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 parser = argparse.ArgumentParser()
@@ -25,15 +16,6 @@ parser.add_argument("-n", "--n_epochs", type=int, default=1000, help="number of 
 parser.add_argument("-b", "--batch", type=int, default=256, help="batch size of training")
 parser.add_argument("-m", "--model", type=str, default='mnist0', help="model to execute")
 opt = parser.parse_args()
-
-if th.cuda.is_available():
-    accelerator = 'gpu'
-    th.set_float32_matmul_precision('medium')
-elif th.backends.mps.is_available():
-    accelerator = 'mps'
-else:
-    accelerator = 'cpu'
-
 
 if th.cuda.is_available():
     accelerator = 'gpu'
@@ -248,9 +230,11 @@ class CIFAR10Model(ltn.LightningModule):
         self.labeled_correct = 0
 
     def configure_optimizers(self):
-        optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
-        scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, 53)
-        return [optimizer], [scheduler]
+        base_optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = optim.Lookahead(base_optimizer, k=5, alpha=0.5)
+        optimizer._optimizer_state_dict_pre_hooks = {}
+        optimizer._optimizer_state_dict_post_hooks = {}
+        return optimizer
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
@@ -312,22 +296,25 @@ class CIFAR10Model(ltn.LightningModule):
 class CIFAR10_CNN(CIFAR10Model):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2)
-        self.fc = SemiLinear(64 * 8 * 8, 10)
+        self.conv1 = nn.Conv2d(3, 40, kernel_size=4, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(40, 40, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(40, 40, kernel_size=4, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(40, 40, kernel_size=4, stride=2, padding=1)
+        self.conv5 = nn.Conv2d(40, 40, kernel_size=4, stride=2, padding=1)
+        self.fc = SemiLinear(40, 10)
         self.act01 = OptAEGV3()
         self.act02 = OptAEGV3()
         self.act03 = OptAEGV3()
         self.act04 = OptAEGV3()
+        self.act05 = OptAEGV3()
 
     def forward(self, x):
         x = self.act01(self.conv1(x))
         x = self.act02(self.conv2(x))
-        x = self.pool(x)
-        x = self.act03(x)
-        x = self.pool(x)
-        x = x.view(-1, 64 * 8 * 8)
+        x = self.act03(self.conv3(x))
+        x = self.act04(self.conv4(x))
+        x = self.act05(self.conv5(x))
+        x = x.view(-1, 40 * 1 * 1)
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x
@@ -360,7 +347,7 @@ def test_best():
                     print('')
         print('')
         print('Accuracy: %2.5f' % (success / counter))
-        th.save(model, 'cifar10-cnn.pt')
+        th.save(model, 'mnist-optaeg-v1.pt')
 
 
 if __name__ == '__main__':
@@ -371,25 +358,21 @@ if __name__ == '__main__':
 
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
-        transforms.Resize(32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
-
     transform_test = transforms.Compose([
-        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    mnist_train = CIFAR10('datasets', train=True, download=True, transform=transform_train)
+    cifar10_train = CIFAR10('datasets', train=True, download=True, transform=transform_train)
+    cifar1_test = CIFAR10('datasets', train=False, download=True, transform=transform_test)
 
-    mnist_test = CIFAR10('datasets', train=False, download=True, transform=transform_test)
-
-    train_loader = DataLoader(mnist_train, shuffle=True, batch_size=opt.batch, num_workers=8)
-    val_loader = DataLoader(mnist_test, batch_size=opt.batch, num_workers=8)
-    test_loader = DataLoader(mnist_test, batch_size=opt.batch, num_workers=8)
+    train_loader = DataLoader(cifar10_train, shuffle=True, batch_size=opt.batch, num_workers=8)
+    val_loader = DataLoader(cifar1_test, batch_size=opt.batch, num_workers=8)
+    test_loader = DataLoader(cifar1_test, batch_size=opt.batch, num_workers=8)
 
     # training
     print('construct trainer...')
