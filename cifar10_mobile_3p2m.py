@@ -1,6 +1,6 @@
 # with width multiplier 1.0
 # * Original MobileNet:                                88.3% (3.2m parameters)
-# * MobileNet + OptAEGV3 + SemiLinear:                 87.3% (3.2m parameters)
+# * MobileNet + OptAEGV3 + SemiLinear:                 88.9% (3.2m parameters)
 
 import torch as th
 import torch.nn.functional as F
