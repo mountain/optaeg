@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import lightning as ltn
 import argparse
 import lightning.pytorch as pl
-import torch_optimizer as optim
 
 from torch import nn
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
