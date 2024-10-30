@@ -2,7 +2,7 @@
 # V3 is the best which can reach 98.2% accuracy on MNIST with only 702 parameters.
 #
 #   variant      accuracy      paramters      comments
-#    v3-cmplx     98.4%           645         best performance
+#    v3-cmplx     98.2%           645         best performance
 #      v3         98.2%           702
 #      v4         98.2%           735
 #      v2         97.8%           693

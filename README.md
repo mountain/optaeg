@@ -2,7 +2,7 @@
 
 We tried different ways to combine neural networks and AEG theory and test them on different datasets.
 Several models showed very good results with extremely fewer parameters:
-- OptAEGV3 complex version with only 645 parameters to reach 98.4% accuracy on MNIST: [code](https://github.com/mountain/optaeg/blob/main/mnist_cmplx.py)
+- OptAEGV3 complex version with only 645 parameters to reach 98.2% accuracy on MNIST: [code](https://github.com/mountain/optaeg/blob/main/mnist_cmplx.py)
 - OptAEGV3 complex version 14k parameters to reach 92.2% accuracy on FashionMNIST: [code](https://github.com/mountain/optaeg/blob/main/fashion_mnist_cmplx.py)
 
 AEG stands for arithmetical expression geometry, which is a new theory studying the geometry of arithmetical expressions.
