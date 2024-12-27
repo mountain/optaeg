@@ -44,115 +44,36 @@ def pair(t):
 
 # classes
 
-class OptAEGV1(nn.Module):
-
+class OptAEGV3(nn.Module):
     def __init__(self):
         super().__init__()
-        self.weight = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.bias = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.a = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.b = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
-        self.d = nn.Parameter(th.normal(0, 1, (1, 1, 1, 1)))
+        self.vx = nn.Parameter(th.zeros(1, 1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
 
     @th.compile
-    def forward(self, data: Tensor) -> Tensor:
+    def flow(self, dx, dy, data):
+        return data * (1 + dy) + dx
+
+    @th.compile
+    def forward(self, data):
         shape = data.size()
-        data = data.flatten(0)
+        data = data.flatten(1)
+        data = (data - data.mean()) / data.std()
 
-        dx = th.e * th.tanh(self.weight * data + self.bias)
-        dy = th.e * th.tanh(data)
+        b = shape[0]
+        v = self.flow(self.vx, self.vy, data.view(b, -1, 1))
+        w = self.flow(self.wx, self.wy, data.view(b, -1, 1))
 
-        data1 = data * th.exp(dy) + dx
-        data2 = data * th.exp(dy) - dx
-        data3 = data * th.exp(- dy) + dx
-        data4 = data * th.exp(- dy) - dx
-
-        data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
+        dx = self.afactor * th.sum(v * th.sigmoid(w), dim=-1)
+        dy = self.mfactor * th.tanh(data)
+        data = self.flow(dx, dy, data)
 
         return data.view(*shape)
 
-
-def multiplier(factor1, factor2):
-    import numpy as np
-    lcm = np.lcm(factor1, factor2).item()
-    return lcm, lcm // factor1, lcm // factor2
-
-
-# semi tensor product
-def stp(m1, m2):
-    sz1, sz2 = m1.size(), m2.size()
-    # print('m1,m2', m1.size(), m2.size())
-    _, c1, c2 = multiplier(sz1[2], sz2[1])
-    # print('multiplier', _, c1, c2)
-    b = max(sz1[0], sz2[0])
-    f = th.zeros(b, 1, 1, device=m1.device)
-    k1 = th.kron(m1, th.eye(c1, device=m1.device).view(1, c1, c1))
-    k2 = th.kron(m2, th.eye(c2, device=m2.device).view(1, c2, c2))
-    # print('k1,k2', k1.size(), k2.size())
-    if sz1[0] != b:
-        k1 = k1.repeat(b, 1, 1)
-    if sz2[0] != b:
-        k2 = k2.repeat(b, 1, 1)
-    result = th.bmm(k1, k2)
-    # print('result', result.size())
-    return result
-
-
-class OptAEGSTP(nn.Module):
-
-    def __init__(self, in_channel=1, out_channel=1, in_spatio=1, out_spatio=1, out_shape=(-1,1,1)):
-        super().__init__()
-
-        self.in_channel = in_channel
-        self.out_channel = out_channel
-        self.in_spatio = in_spatio
-        self.out_spatio = out_spatio
-        self.out_shape = out_shape
-
-        channel_dim, _, _ = multiplier(in_channel, out_channel)
-        spatio_dim, _, _ = multiplier(in_spatio, out_spatio)
-        self.channel_expansion = nn.Parameter(th.normal(0, 1, (1, channel_dim, in_channel)))
-        self.spatio_expansion = nn.Parameter(th.normal(0, 1, (1, in_spatio, spatio_dim)))
-        self.channel_reduction = nn.Parameter(th.normal(0, 1, (1, out_channel, channel_dim)))
-        self.spatio_reduction = nn.Parameter(th.normal(0, 1, (1, spatio_dim, out_spatio)))
-
-        self.weight = nn.Parameter(th.normal(0, 1, (1, channel_dim, spatio_dim)))
-        self.bias = nn.Parameter(th.normal(0, 1, (1, channel_dim, spatio_dim)))
-        self.a = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
-        self.b = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
-        self.c = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
-        self.d = nn.Parameter(th.normal(0, 1, (1, 1, 1)))
-
-    def forward(self, data: Tensor) -> Tensor:
-        shape = data.size()
-        if len(data.size()) > 2:
-            data = data.flatten(2)
-        elif len(data.size()) == 2:
-            data = data.view(-1, shape[1], 1)
-
-        # data = (data - data.mean()) / data.std()
-
-        data = stp(self.channel_expansion, data)
-        data = stp(data, self.spatio_expansion)
-
-        dx = th.e * th.tanh(self.weight * data + self.bias)
-        dy = th.e * th.tanh(data)
-
-        data1 = data * th.exp(dy) + dx
-        data2 = data * th.exp(dy) - dx
-        data3 = data * th.exp(- dy) + dx
-        data4 = data * th.exp(- dy) - dx
-
-        data = self.a * data1 + self.b * data2 + self.c * data3 + self.d * data4
-
-        data = stp(data, self.spatio_reduction)
-        data = stp(self.channel_reduction, data)
-
-        return data.view(*self.out_shape)
-
-
-# classes
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
@@ -167,7 +88,7 @@ class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
-            OptAEGV1(),
+            OptAEGV3(),
             # nn.Linear(dim, hidden_dim),
             # nn.Dropout(dropout),
             # nn.GELU(),
@@ -266,7 +187,7 @@ class ViT(nn.Module):
 
         self.pool = pool
         # self.to_latent = nn.Identity()
-        self.to_latent = OptAEGV1()
+        self.to_latent = OptAEGV3()
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),
@@ -360,7 +281,7 @@ class MNISTModel(ltn.LightningModule):
         print()
 
 
-class MNIST_OptAEGV1(MNISTModel):
+class MNIST_OptAEGV3(MNISTModel):
     def __init__(self):
         super().__init__()
         self.vit = ViT(
@@ -385,7 +306,7 @@ def test_best():
     import glob
     fname = sorted(glob.glob('best-*.ckpt'), reverse=True)[0]
     with open(fname, 'rb') as f:
-        model = MNIST_OptAEGV1()
+        model = MNIST_OptAEGV3()
         checkpoint = th.load(f)
         model.load_state_dict(checkpoint['state_dict'], strict=False)
         model = model.cpu()
@@ -445,7 +366,7 @@ if __name__ == '__main__':
                          callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=30)])
 
     print('construct model...')
-    model = MNIST_OptAEGV1()
+    model = MNIST_OptAEGV3()
 
     print('training...')
     trainer.fit(model, train_loader, val_loader)
