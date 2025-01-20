@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import MNIST
 from torchvision import transforms
 from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.strategies import DDPStrategy
 
 
 # ---------------- p-network (示例) ----------------
