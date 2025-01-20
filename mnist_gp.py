@@ -145,9 +145,9 @@ class LightningPGModule(pl.LightningModule):
             old_w = self.p_net.fc1.weight.data
             new_w = self.alpha * old_w + (1 - self.alpha) * all_pred_w
             self.p_net.fc1.weight.data.copy_(new_w)
-            self.generaton = self.generaton + 1
+            self.generation = self.generation + 1
             import math
-            t = self.generaton / 20000
+            t = self.generation / 20000
             t = math.exp(t)
             self.alpha = 1 / (1 + t)
 
