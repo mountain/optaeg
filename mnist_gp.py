@@ -193,6 +193,7 @@ def main():
 
     # Trainer
     trainer = pl.Trainer(
+        strategy=DDPStrategy(find_unused_parameters=True),
         accelerator="auto",
         max_epochs=args.max_epochs,
         callbacks=[EarlyStopping(monitor="val_loss", patience=3, mode="min")],
