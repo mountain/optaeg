@@ -68,6 +68,7 @@ class LightningPGModule(pl.LightningModule):
         self.p_net = PNetwork()
         self.g_net = GNetwork()
 
+        self.generation = 0
         self.alpha = alpha
         self.lr_p  = lr_p
         self.lr_g  = lr_g
@@ -144,6 +145,11 @@ class LightningPGModule(pl.LightningModule):
             old_w = self.p_net.fc1.weight.data
             new_w = self.alpha * old_w + (1 - self.alpha) * all_pred_w
             self.p_net.fc1.weight.data.copy_(new_w)
+            self.generaton = self.generaton + 1
+            import math
+            t = self.generaton / 20000
+            t = math.exp(t)
+            self.alpha = 1 / (1 + t)
 
         # Logging
         self.log('train_loss_p', loss_p, on_step=True, prog_bar=True)
@@ -171,8 +177,8 @@ class LightningPGModule(pl.LightningModule):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--max_epochs", type=int, default=5)
-    parser.add_argument("--alpha", type=float, default=0.5)
+    parser.add_argument("--max_epochs", type=int, default=20000)
+    parser.add_argument("--alpha", type=float, default=0.01)
     args = parser.parse_args()
 
     # 数据集
@@ -197,7 +203,7 @@ def main():
         strategy=DDPStrategy(find_unused_parameters=True),
         accelerator="auto",
         max_epochs=args.max_epochs,
-        callbacks=[EarlyStopping(monitor="val_loss", patience=3, mode="min")],
+        # callbacks=[EarlyStopping(monitor="val_loss", patience=30, mode="min")],
         log_every_n_steps=10
     )
 
