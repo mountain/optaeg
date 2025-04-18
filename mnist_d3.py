@@ -92,7 +92,7 @@ class OptAEGD2(nn.Module):
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
-        data = th.sigmoid(self.alpha * data)
+        data = th.tanh(self.alpha * data)
 
         u = self.flow(data, self.ux, self.uy)
         v = self.flow(data, self.ux, self.uy)
