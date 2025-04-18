@@ -65,6 +65,38 @@ class OptAEGD3(nn.Module):
         return data.view(*shape)
 
 
+class OptAEGV3(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vx = nn.Parameter(th.zeros(1, 1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
+
+    @th.compile
+    def flow(self, dx, dy, data):
+        return data * (1 + dy) + dx
+
+    @th.compile
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(1)
+        data = data - data.mean()
+        data = data / data.std()
+
+        b = shape[0]
+        v = self.flow(self.vx, self.vy, data.view(b, -1, 1))
+        w = self.flow(self.wx, self.wy, data.view(b, -1, 1))
+
+        dx = self.afactor * th.sum(v * th.sigmoid(w), dim=-1)
+        dy = self.mfactor * th.tanh(data)
+        data = self.flow(dx, dy, data)
+
+        return data.view(*shape)
+
+
 class MNISTModel(ltn.LightningModule):
     def __init__(self):
         super().__init__()
@@ -139,11 +171,11 @@ class MNIST_AEGConv(MNISTModel):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
         self.conv0 = nn.Conv2d(1, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon0 = OptAEGD3()
+        self.lnon0 = OptAEGV3()
         self.conv1 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon1 = OptAEGD3()
+        self.lnon1 = OptAEGV3()
         self.conv2 = nn.Conv2d(4 , 4, kernel_size=3, padding=1, bias=False)
-        self.lnon2 = OptAEGD3()
+        self.lnon2 = OptAEGV3()
         self.fc = nn.Linear(4 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
