@@ -41,8 +41,6 @@ class OptAEGD3(nn.Module):
         self.uy = nn.Parameter(th.ones(1, 1))
         self.vx = nn.Parameter(th.zeros(1, 1))
         self.vy = nn.Parameter(th.ones(1, 1))
-        self.wx = nn.Parameter(th.zeros(1, 1))
-        self.wy = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
