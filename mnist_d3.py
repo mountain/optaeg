@@ -41,6 +41,8 @@ class OptAEGD3(nn.Module):
         self.uy = nn.Parameter(th.ones(1, 1))
         self.vx = nn.Parameter(th.zeros(1, 1))
         self.vy = nn.Parameter(th.ones(1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
@@ -53,10 +55,11 @@ class OptAEGD3(nn.Module):
         data = th.tanh(self.alpha * data)
 
         u = self.flow(data, self.ux, self.uy)
-        v = self.flow(data, self.ux, self.uy)
+        v = self.flow(data, self.vx, self.vy)
+        w = self.flow(data, self.wx, self.wy)
 
-        dx = self.afactor * u * th.sigmoid(u)
-        dy = self.mfactor * th.tanh(data) * th.sigmoid(v)
+        dx = self.afactor * u * th.sigmoid(v)
+        dy = self.mfactor * th.tanh(data) * th.sigmoid(w)
         data = self.flow(data, dx, dy)
 
         return data.view(*shape)
