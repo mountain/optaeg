@@ -222,8 +222,10 @@ if __name__ == '__main__':
 
     # training
     print('construct trainer...')
-    trainer = pl.Trainer(accelerator=accelerator, precision=32, max_epochs=opt.n_epochs,
-                         callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=10)])
+    trainer = pl.Trainer(
+        strategy='ddp_find_unused_parameters_true',
+        accelerator=accelerator, precision=32, max_epochs=opt.n_epochs,
+        callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=10)])
 
     print('construct model...')
     model = MNIST_AEGConv()
