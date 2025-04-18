@@ -104,9 +104,6 @@ class MNISTModel(ltn.LightningModule):
         pred = z.data.max(1, keepdim=True)[1]
         correct = pred.eq(y.data.view_as(pred)).sum()
         self.log('accuracy', correct / z.size()[0], prog_bar=True)
-        img = x[0].to('cpu').numpy()
-        guess = pred[0, 0].item()
-        self.logger.experiment.add_image(f'image_{guess}', img)
 
         self.labeled_loss += loss.item() * y.size()[0]
         self.labeled_correct += correct.item()
