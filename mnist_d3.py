@@ -53,7 +53,7 @@ class OptAEGD3(nn.Module):
     @th.compile
     def flow(self, a, dx, dy, dz):
         log = th.log(th.abs(a))
-        return a * (1 + log * dz + (log * log + log) * dz * dz / 2.0) * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
+        return a * (1 + log * dz + (log * log + log) * dz * dz / 2.0) * (1 + dy + dy * dy / 2.0) + dx
 
     @th.compile
     def forward(self, data):
