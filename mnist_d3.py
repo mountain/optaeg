@@ -76,7 +76,7 @@ class OptAEGD3(nn.Module):
 class OptAEGD2(nn.Module):
     def __init__(self):
         super().__init__()
-        self.alpha = nn.Parameter(th.zeros(1, 1))
+        self.alpha = nn.Parameter(th.ones(1, 1))
         self.ux = nn.Parameter(th.zeros(1, 1))
         self.uy = nn.Parameter(th.ones(1, 1))
         self.vx = nn.Parameter(th.zeros(1, 1))
