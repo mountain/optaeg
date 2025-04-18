@@ -121,21 +121,22 @@ class MNISTModel(ltn.LightningModule):
     def on_save_checkpoint(self, checkpoint) -> None:
         import glob, os
 
-        correct = self.labeled_correct / self.counter
-        loss = self.labeled_loss / self.counter
-        record = '%2.5f-%03d-%1.5f.ckpt' % (correct, checkpoint['epoch'], loss)
-        fname = 'best-%s' % record
-        with open(fname, 'bw') as f:
-            th.save(checkpoint, f)
-        for ix, ckpt in enumerate(sorted(glob.glob('best-*.ckpt'), reverse=True)):
-            if ix > 5:
-                os.unlink(ckpt)
+        if self.rank == 0:
+            correct = self.labeled_correct / self.counter
+            loss = self.labeled_loss / self.counter
+            record = '%2.5f-%03d-%1.5f.ckpt' % (correct, checkpoint['epoch'], loss)
+            fname = 'best-%s' % record
+            with open(fname, 'bw') as f:
+                th.save(checkpoint, f)
+            for ix, ckpt in enumerate(sorted(glob.glob('best-*.ckpt'), reverse=True)):
+                if ix > 5:
+                    os.unlink(ckpt)
 
-        self.counter = 0
-        self.labeled_loss = 0
-        self.labeled_correct = 0
+            self.counter = 0
+            self.labeled_loss = 0
+            self.labeled_correct = 0
 
-        print()
+            print()
 
 
 class MNIST_AEGConv(MNISTModel):
