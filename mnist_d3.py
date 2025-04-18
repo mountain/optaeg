@@ -73,6 +73,38 @@ class OptAEGD3(nn.Module):
         return data.view(*shape)
 
 
+class OptAEGD2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.alpha = nn.Parameter(th.zeros(1, 1))
+        self.ux = nn.Parameter(th.zeros(1, 1))
+        self.uy = nn.Parameter(th.zeros(1, 1))
+        self.vx = nn.Parameter(th.zeros(1, 1))
+        self.vy = nn.Parameter(th.zeros(1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1))
+        self.wy = nn.Parameter(th.zeros(1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.zeros(1, 1))
+
+    def flow(self, a, dx, dy):
+        return a * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
+
+    def forward(self, data):
+        shape = data.size()
+        data = data.flatten(1)
+        data = th.sigmoid(self.alpha * data)
+
+        u = self.flow(data, self.ux, self.uy)
+        v = self.flow(data, self.ux, self.uy)
+        w = self.flow(data, self.wx, self.wy)
+
+        dx = self.afactor * u * th.sigmoid(v)
+        dy = self.mfactor * th.tanh(data) * th.sigmoid(w)
+        data = self.flow(data, dx, dy)
+
+        return data.view(*shape)
+
+
 class OptAEGV3(nn.Module):
     def __init__(self):
         super().__init__()
@@ -179,11 +211,11 @@ class MNIST_AEGConv(MNISTModel):
         super().__init__()
         self.pool = nn.MaxPool2d(2)
         self.conv0 = nn.Conv2d(1, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon0 = OptAEGD3()
+        self.lnon0 = OptAEGD2()
         self.conv1 = nn.Conv2d(4, 4, kernel_size=3, padding=1, bias=False)
-        self.lnon1 = OptAEGD3()
+        self.lnon1 = OptAEGD2()
         self.conv2 = nn.Conv2d(4 , 4, kernel_size=3, padding=1, bias=False)
-        self.lnon2 = OptAEGD3()
+        self.lnon2 = OptAEGD2()
         self.fc = nn.Linear(4 * 3 * 3, 10, bias=False)
 
     def forward(self, x):
