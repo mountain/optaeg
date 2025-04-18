@@ -39,34 +39,27 @@ class OptAEGD3(nn.Module):
         self.alpha = nn.Parameter(th.zeros(1, 1))
         self.ux = nn.Parameter(th.zeros(1, 1))
         self.uy = nn.Parameter(th.ones(1, 1))
-        self.uz = nn.Parameter(th.ones(1, 1))
         self.vx = nn.Parameter(th.zeros(1, 1))
         self.vy = nn.Parameter(th.ones(1, 1))
-        self.vz = nn.Parameter(th.ones(1, 1))
         self.wx = nn.Parameter(th.zeros(1, 1))
         self.wy = nn.Parameter(th.ones(1, 1))
-        self.wz = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
-        self.pfactor = nn.Parameter(th.ones(1, 1))
 
-    def flow(self, a, dx, dy, dz):
-        log = th.log(a)
-        return a * (1 + log * dz + (log * log + log) * dz * dz / 2.0) * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
+    def flow(self, a, dx, dy):
+        return a * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
 
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
-        data = th.sigmoid(self.alpha * data)
+        data = th.tanh(self.alpha * data)
 
-        u = self.flow(data, self.ux, self.uy, self.uz)
-        v = self.flow(data, self.ux, self.uy, self.vz)
-        w = self.flow(data, self.wx, self.wy, self.wz)
+        u = self.flow(data, self.ux, self.uy)
+        v = self.flow(data, self.ux, self.uy)
 
-        dx = self.afactor * th.tanh(data) * th.sigmoid(u)
+        dx = self.afactor * u * th.sigmoid(u)
         dy = self.mfactor * th.tanh(data) * th.sigmoid(v)
-        dz = self.pfactor * th.tanh(data) * th.sigmoid(w)
-        data = self.flow(data, dx, dy, dz)
+        data = self.flow(data, dx, dy)
 
         return data.view(*shape)
 
