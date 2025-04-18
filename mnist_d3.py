@@ -46,9 +46,11 @@ class OptAEGD3(nn.Module):
         self.afactor = nn.Parameter(th.zeros(1, 1))
         self.mfactor = nn.Parameter(th.ones(1, 1))
 
+    @th.compile
     def flow(self, a, dx, dy):
         return a * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
 
+    @th.compile
     def forward(self, data):
         shape = data.size()
         data = data.flatten(1)
