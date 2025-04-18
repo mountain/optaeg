@@ -78,13 +78,13 @@ class OptAEGD2(nn.Module):
         super().__init__()
         self.alpha = nn.Parameter(th.zeros(1, 1))
         self.ux = nn.Parameter(th.zeros(1, 1))
-        self.uy = nn.Parameter(th.zeros(1, 1))
+        self.uy = nn.Parameter(th.ones(1, 1))
         self.vx = nn.Parameter(th.zeros(1, 1))
-        self.vy = nn.Parameter(th.zeros(1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1))
         self.wx = nn.Parameter(th.zeros(1, 1))
-        self.wy = nn.Parameter(th.zeros(1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1))
         self.afactor = nn.Parameter(th.zeros(1, 1))
-        self.mfactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
 
     def flow(self, a, dx, dy):
         return a * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
