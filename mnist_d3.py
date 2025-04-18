@@ -36,22 +36,22 @@ else:
 class OptAEGD3(nn.Module):
     def __init__(self):
         super().__init__()
-        self.alpha = nn.Parameter(torch.zeros(1, 1))
-        self.ux = nn.Parameter(torch.zeros(1, 1))
-        self.uy = nn.Parameter(torch.ones(1, 1))
-        self.uz = nn.Parameter(torch.ones(1, 1))
-        self.vx = nn.Parameter(torch.zeros(1, 1))
-        self.vy = nn.Parameter(torch.ones(1, 1))
-        self.vz = nn.Parameter(torch.ones(1, 1))
-        self.wx = nn.Parameter(torch.zeros(1, 1))
-        self.wy = nn.Parameter(torch.ones(1, 1))
-        self.wz = nn.Parameter(torch.ones(1, 1))
-        self.afactor = nn.Parameter(torch.zeros(1, 1))
-        self.mfactor = nn.Parameter(torch.ones(1, 1))
-        self.pfactor = nn.Parameter(torch.ones(1, 1))
+        self.alpha = nn.Parameter(th.zeros(1, 1))
+        self.ux = nn.Parameter(th.zeros(1, 1))
+        self.uy = nn.Parameter(th.ones(1, 1))
+        self.uz = nn.Parameter(th.ones(1, 1))
+        self.vx = nn.Parameter(th.zeros(1, 1))
+        self.vy = nn.Parameter(th.ones(1, 1))
+        self.vz = nn.Parameter(th.ones(1, 1))
+        self.wx = nn.Parameter(th.zeros(1, 1))
+        self.wy = nn.Parameter(th.ones(1, 1))
+        self.wz = nn.Parameter(th.ones(1, 1))
+        self.afactor = nn.Parameter(th.zeros(1, 1))
+        self.mfactor = nn.Parameter(th.ones(1, 1))
+        self.pfactor = nn.Parameter(th.ones(1, 1))
 
     def flow(self, a, dx, dy, dz):
-        log = torch.log(a)
+        log = th.log(a)
         return a * (1 + log * dz + (log * log + log) * dz * dz / 2.0) * (1 + dy + dy * dy / 2.0) + dx + 0.25 * dx * dy
 
     def forward(self, data):
@@ -63,9 +63,9 @@ class OptAEGD3(nn.Module):
         v = self.flow(data, self.ux, self.uy, self.vz)
         w = self.flow(data, self.wx, self.wy, self.wz)
 
-        dx = self.afactor * torch.tanh(data) * torch.sigmoid(u)
-        dy = self.mfactor * torch.tanh(data) * torch.sigmoid(v)
-        dz = self.pfactor * torch.tanh(data) * torch.sigmoid(w)
+        dx = self.afactor * th.tanh(data) * th.sigmoid(u)
+        dy = self.mfactor * th.tanh(data) * th.sigmoid(v)
+        dz = self.pfactor * th.tanh(data) * th.sigmoid(w)
         data = self.flow(data, dx, dy, dz)
 
         return data.view(*shape)
