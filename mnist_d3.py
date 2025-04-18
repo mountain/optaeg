@@ -71,7 +71,7 @@ class MNISTModel(ltn.LightningModule):
         self.labeled_correct = 0
 
     def configure_optimizers(self):
-        optimizer = th.optim.AdamW(self.parameters(), lr=self.learning_rate)
+        optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
         scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, 53)
         return [optimizer], [scheduler]
 
