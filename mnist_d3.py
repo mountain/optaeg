@@ -121,7 +121,8 @@ class MNISTModel(ltn.LightningModule):
     def on_save_checkpoint(self, checkpoint) -> None:
         import glob, os
 
-        if self.rank == 0:
+        # to avoid ddp issues, only process with rank 0 write the checkpoint
+        if self.global_rank == 0:
             correct = self.labeled_correct / self.counter
             loss = self.labeled_loss / self.counter
             record = '%2.5f-%03d-%1.5f.ckpt' % (correct, checkpoint['epoch'], loss)
